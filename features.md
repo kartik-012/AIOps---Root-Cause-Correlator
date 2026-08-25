@@ -4,6 +4,7 @@
 **Scope: Tier 1 (core differentiators), Tier 2 (extended capabilities), and Kubernetes/Prometheus integration**
 
 
+
 ## Overview
 
 The base system performs statistical anomaly detection and graph-based root-cause correlation. The features below extend it from a detection tool into a predictive, self-improving incident intelligence platform. Each feature is scoped with its engineering rationale, functional behavior, and the production concern it addresses — written as it would appear in an internal design document ahead of implementation sign-off.

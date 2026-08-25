@@ -3,13 +3,13 @@
 **Advanced Feature Specification — AIOps Root Cause Correlator**
 **Scope: Tier 1 (core differentiators), Tier 2 (extended capabilities), and Kubernetes/Prometheus integration**
 
----
+
 
 ## Overview
 
 The base system performs statistical anomaly detection and graph-based root-cause correlation. The features below extend it from a detection tool into a predictive, self-improving incident intelligence platform. Each feature is scoped with its engineering rationale, functional behavior, and the production concern it addresses — written as it would appear in an internal design document ahead of implementation sign-off.
 
----
+
 
 ## TIER 1 — Core Differentiating Features
 
@@ -21,7 +21,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Why this matters for evaluation:** This is validated directly against six dedicated multi-incident scenarios (see `evaluation-scenarios.md`, items 19–24), including a deliberately adversarial case where two independent failures cascade toward the same downstream service — the hardest separation case in the set.
 
----
+
 
 ### 1.2 False-Positive Suppression via Historical Memory
 
@@ -31,7 +31,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Why this matters for evaluation:** Suppression precision and recall are tracked as first-class metrics, not assumed. A suppression engine that hides a real incident is worse than no suppression at all — this is measured explicitly, not asserted.
 
----
+
 
 ### 1.3 Blast Radius Prediction
 
@@ -41,7 +41,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Why this matters for evaluation:** Prediction accuracy is tested at an early cascade checkpoint (evaluation scenario 29) and against a deliberately contained, non-cascading failure (scenario 30) to confirm the engine does not over-predict spread where none will occur.
 
----
+
 
 ### 1.4 Counterfactual "What-If" Simulator
 
@@ -51,7 +51,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Why this matters for evaluation:** This is the feature most likely to be raised in an interview as evidence of causal, not merely correlational, reasoning — the distinction is worth being able to explain clearly.
 
----
+
 
 ## TIER 2 — Extended Platform Capabilities
 
@@ -61,7 +61,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Engineering approach:** A dedicated WebSocket endpoint streams three event types to connected clients — anomaly detection, incident correlation, and blast radius updates — as they are produced by the backend pipeline. The frontend subscribes once per session; no polling is used at any layer.
 
----
+
 
 ### 2.2 Auto-Generated Runbook Suggestions
 
@@ -69,7 +69,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Engineering approach:** Each root-cause type is mapped, via a curated and version-controlled JSON library, to a suggested remediation action. The suggestion is surfaced alongside the root-cause result but is explicitly advisory — no endpoint in the system executes a remediation action automatically. Every suggestion requires explicit human approval before being marked as actioned, consistent with the platform's human-in-the-loop principle for high-impact operations.
 
----
+
 
 ### 2.3 Severity-Weighted Business Impact Scoring
 
@@ -77,7 +77,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Engineering approach:** Each service carries a configurable revenue-weight attribute. The impact score for an incident is computed as a function of anomaly severity, the affected service's revenue weight, and the number of downstream services depending on it. This produces a single, sortable impact number that can be used to triage multiple concurrent incidents by business consequence rather than raw technical severity alone.
 
----
+
 
 ### 2.4 Drift-Aware Detection Thresholds
 
@@ -85,7 +85,7 @@ The base system performs statistical anomaly detection and graph-based root-caus
 
 **Engineering approach:** Per-service, per-metric baselines are maintained using an exponentially weighted moving average rather than a fixed rolling window. The baseline continuously adapts to genuine, gradual shifts in normal behavior while still flagging sudden deviations. This is validated directly against a dedicated evaluation scenario (item 27) simulating two weeks of legitimate, gradual traffic growth, confirming the engine does not misclassify organic growth as an incident.
 
----
+
 
 ## KUBERNETES & PROMETHEUS INTEGRATION
 

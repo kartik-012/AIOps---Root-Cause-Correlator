@@ -12,7 +12,7 @@
 [![Tests: 16/16 Passed](https://img.shields.io/badge/Tests-16%2F16%20Passed%20(100%25)-brightgreen.svg)]()
 [![Top-1 Accuracy](https://img.shields.io/badge/Top--1%20Accuracy-100%25%20(30%2F30)-gold.svg)]()
 
-<br />
+<br /> 
 
 <div align="center">
   <img src="assets/dashboard-preview.png" alt="AIOps Root Cause Correlator — Full Dashboard View" width="100%" />

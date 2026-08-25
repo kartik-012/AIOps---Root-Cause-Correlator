@@ -1,0 +1,125 @@
+{
+  "scenario_id": 3,
+  "name": "cpu_spike",
+  "description": "Inventory CPU pegged at 100% cascading to product-catalog and order",
+  "category": "single_root_cause",
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "auth",
+      "name": "Auth Service",
+      "revenue_weight": 7.0
+    },
+    {
+      "id": "product-catalog",
+      "name": "Product Catalog",
+      "revenue_weight": 6.0
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Service",
+      "revenue_weight": 8.0
+    },
+    {
+      "id": "order",
+      "name": "Order Service",
+      "revenue_weight": 9.0
+    },
+    {
+      "id": "payment",
+      "name": "Payment Service",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "notification",
+      "name": "Notification Service",
+      "revenue_weight": 3.0
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping Service",
+      "revenue_weight": 4.0
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "api-gateway",
+      "to": "auth"
+    },
+    {
+      "from": "api-gateway",
+      "to": "product-catalog"
+    },
+    {
+      "from": "product-catalog",
+      "to": "inventory"
+    },
+    {
+      "from": "api-gateway",
+      "to": "order"
+    },
+    {
+      "from": "order",
+      "to": "payment"
+    },
+    {
+      "from": "order",
+      "to": "inventory"
+    },
+    {
+      "from": "order",
+      "to": "notification"
+    },
+    {
+      "from": "order",
+      "to": "shipping"
+    }
+  ],
+  "injected_fault": {
+    "service": "inventory",
+    "metric": "cpu_usage",
+    "z_score": 5.2,
+    "severity": "critical",
+    "t_offset": 0
+  },
+  "injected_faults": null,
+  "cascade": [
+    {
+      "service": "product-catalog",
+      "metric": "latency_ms",
+      "z_score": 3.8,
+      "severity": "high",
+      "t_offset": 8
+    },
+    {
+      "service": "order",
+      "metric": "latency_ms",
+      "z_score": 3.4,
+      "severity": "high",
+      "t_offset": 14
+    },
+    {
+      "service": "api-gateway",
+      "metric": "error_rate",
+      "z_score": 2.9,
+      "severity": "medium",
+      "t_offset": 22
+    }
+  ],
+  "signature": null,
+  "ground_truth": {
+    "root_cause_service": "inventory",
+    "root_cause_type": "cpu_spike",
+    "affected_services": [
+      "product-catalog",
+      "order",
+      "api-gateway"
+    ],
+    "expected_incidents": 1,
+    "is_false_positive": false
+  }
+}

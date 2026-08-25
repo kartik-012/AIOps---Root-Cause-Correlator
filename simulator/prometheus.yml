@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "aiops-microservices"
+    static_configs:
+      - targets:
+          - "api-gateway:8080"
+          - "auth-service:8080"
+          - "product-catalog:8080"
+          - "inventory-service:8080"
+          - "order-service:8080"
+          - "payment-service:8080"
+          - "notification-service:8080"
+          - "shipping-service:8080"

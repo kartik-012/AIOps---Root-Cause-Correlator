@@ -1,0 +1,88 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: aiops-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  api-gateway:
+    build:
+      context: ./services
+    container_name: sim-api-gateway
+    environment:
+      - SERVICE_NAME=api-gateway
+      - PORT=8080
+    ports:
+      - "8081:8080"
+
+  auth-service:
+    build:
+      context: ./services
+    container_name: sim-auth-service
+    environment:
+      - SERVICE_NAME=auth-service
+      - PORT=8080
+    ports:
+      - "8082:8080"
+
+  product-catalog:
+    build:
+      context: ./services
+    container_name: sim-product-catalog
+    environment:
+      - SERVICE_NAME=product-catalog
+      - PORT=8080
+    ports:
+      - "8083:8080"
+
+  inventory-service:
+    build:
+      context: ./services
+    container_name: sim-inventory-service
+    environment:
+      - SERVICE_NAME=inventory-service
+      - PORT=8080
+    ports:
+      - "8084:8080"
+
+  order-service:
+    build:
+      context: ./services
+    container_name: sim-order-service
+    environment:
+      - SERVICE_NAME=order-service
+      - PORT=8080
+    ports:
+      - "8085:8080"
+
+  payment-service:
+    build:
+      context: ./services
+    container_name: sim-payment-service
+    environment:
+      - SERVICE_NAME=payment-service
+      - PORT=8080
+    ports:
+      - "8086:8080"
+
+  notification-service:
+    build:
+      context: ./services
+    container_name: sim-notification-service
+    environment:
+      - SERVICE_NAME=notification-service
+      - PORT=8080
+    ports:
+      - "8087:8080"
+
+  shipping-service:
+    build:
+      context: ./services
+    container_name: sim-shipping-service
+    environment:
+      - SERVICE_NAME=shipping-service
+      - PORT=8080
+    ports:
+      - "8088:8080"

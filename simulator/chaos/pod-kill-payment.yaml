@@ -1,0 +1,15 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-payment
+  namespace: aiops-demo
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - aiops-demo
+    labelSelectors:
+      app: payment-service
+  scheduler:
+    cron: '@every 2m'

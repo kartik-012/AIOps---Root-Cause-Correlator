@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 16 with pgvector for Incident Memory & Cosine Similarity
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aiops-postgres
+    environment:
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: aiops_secret
+      POSTGRES_DB: aiops_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiops -d aiops_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Real-time Event Mesh & WebSocket Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: aiops-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # AIOps Backend Engine (FastAPI + NetworkX + EWMA + pgvector)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aiops-backend
+    environment:
+      DATABASE_URL: postgresql://aiops:aiops_secret@postgres:5432/aiops_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      SECRET_KEY: aiops_super_secret_production_key_2026
+      DEBUG: "true"
+      EWMA_ALPHA: "0.3"
+      Z_SCORE_THRESHOLD: "2.0"
+      SUPPRESSION_SIMILARITY_THRESHOLD: "0.85"
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  # AIOps React 18 + Three.js Neural Mesh Frontend
+  frontend:
+    build:
+      context: ./aiops-frontend
+      dockerfile: Dockerfile
+    container_name: aiops-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8001
+
+volumes:
+  pgdata:
+  redisdata:

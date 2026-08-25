@@ -1,0 +1,220 @@
+{
+  "db_connection_exhaustion": {
+    "title": "Database Connection Pool Exhaustion",
+    "severity": "critical",
+    "steps": [
+      "Check current connection count: SELECT count(*) FROM pg_stat_activity;",
+      "Identify long-running queries: SELECT pid, now() - pg_stat_activity.query_start AS duration, query FROM pg_stat_activity WHERE state != 'idle' ORDER BY duration DESC;",
+      "Scale connection pool size in service configuration",
+      "Terminate idle connections if pool is saturated",
+      "Check for connection leaks in application code",
+      "Monitor connection count after remediation"
+    ],
+    "prevention": "Set up connection pool monitoring with alerts at 80% capacity"
+  },
+  "memory_leak": {
+    "title": "Memory Leak",
+    "severity": "high",
+    "steps": [
+      "Identify the leaking process via container memory metrics",
+      "Capture heap dump if possible",
+      "Restart the affected pod to restore service",
+      "Review recent deployments for memory-related changes",
+      "Profile the service with memory analysis tools"
+    ],
+    "prevention": "Set memory limits and implement automated restart policies"
+  },
+  "cpu_spike": {
+    "title": "CPU Spike / Saturation",
+    "severity": "high",
+    "steps": [
+      "Check CPU usage per container: kubectl top pods -n <namespace>",
+      "Identify CPU-intensive operations in application logs",
+      "Scale horizontally if load-driven",
+      "Check for infinite loops or runaway computations",
+      "Review recent code changes for performance regressions"
+    ],
+    "prevention": "Configure HPA with appropriate CPU thresholds"
+  },
+  "network_latency_injection": {
+    "title": "Network Latency / Partition",
+    "severity": "high",
+    "steps": [
+      "Verify network connectivity between affected services",
+      "Check network policies and firewall rules",
+      "Inspect DNS resolution times",
+      "Review recent network configuration changes",
+      "Check for bandwidth saturation on nodes"
+    ],
+    "prevention": "Implement circuit breakers and timeout policies"
+  },
+  "pod_crash_loop": {
+    "title": "Pod Crash Loop",
+    "severity": "critical",
+    "steps": [
+      "Check pod logs: kubectl logs <pod> --previous",
+      "Describe pod for events: kubectl describe pod <pod>",
+      "Check resource limits (OOMKilled?)",
+      "Verify liveness/readiness probe configuration",
+      "Check for missing environment variables or config maps",
+      "Rollback to last known good deployment if caused by bad deploy"
+    ],
+    "prevention": "Implement proper health checks and resource limits"
+  },
+  "disk_io_saturation": {
+    "title": "Disk I/O Saturation",
+    "severity": "high",
+    "steps": [
+      "Identify I/O-heavy processes on the node",
+      "Check disk usage and available space",
+      "Review log volume — excessive logging?",
+      "Check for large temporary file accumulation",
+      "Consider moving to faster storage class"
+    ],
+    "prevention": "Monitor disk I/O metrics and set alerts at 80% utilization"
+  },
+  "cold_start_storm": {
+    "title": "Cold Start Storm",
+    "severity": "medium",
+    "steps": [
+      "Check HPA scaling events",
+      "Verify pod readiness probe timing",
+      "Implement connection pre-warming",
+      "Consider increasing minReplicas during peak hours",
+      "Add pod disruption budgets"
+    ],
+    "prevention": "Configure predictive autoscaling and pre-warming"
+  },
+  "config_error": {
+    "title": "Configuration Error",
+    "severity": "critical",
+    "steps": [
+      "Identify the changed configuration via deployment history",
+      "Rollback the configuration change",
+      "Verify service recovery after rollback",
+      "Review the config change for errors",
+      "Add validation to the config deployment pipeline"
+    ],
+    "prevention": "Implement config validation in CI/CD pipeline"
+  },
+  "dependency_timeout_misconfig": {
+    "title": "Dependency Timeout Misconfiguration",
+    "severity": "medium",
+    "steps": [
+      "Review timeout settings in service configuration",
+      "Check p99 latency of the dependency under normal load",
+      "Adjust timeout to 3x p99 latency",
+      "Implement circuit breaker pattern",
+      "Add retry with exponential backoff"
+    ],
+    "prevention": "Standardize timeout configurations and review during deploys"
+  },
+  "cascading_retry_storm": {
+    "title": "Cascading Retry Storm",
+    "severity": "critical",
+    "steps": [
+      "Immediately reduce retry rates or disable retries",
+      "Identify the original failing service",
+      "Fix the root cause before re-enabling retries",
+      "Implement exponential backoff with jitter",
+      "Add circuit breakers to prevent amplification"
+    ],
+    "prevention": "Implement exponential backoff, jitter, and circuit breakers"
+  },
+  "certificate_expiry": {
+    "title": "TLS Certificate Expiry",
+    "severity": "critical",
+    "steps": [
+      "Identify expired certificate and affected service",
+      "Renew the certificate immediately",
+      "Deploy the new certificate",
+      "Verify TLS connections are restored",
+      "Set up automated certificate renewal (cert-manager)"
+    ],
+    "prevention": "Use cert-manager with auto-renewal and expiry alerts at 30 days"
+  },
+  "rate_limiter_misfire": {
+    "title": "Rate Limiter Misfire",
+    "severity": "medium",
+    "steps": [
+      "Check rate limiter configuration and current thresholds",
+      "Compare actual traffic against limits",
+      "Temporarily increase limits if blocking legitimate traffic",
+      "Review rate limiter logic for bugs",
+      "Add per-client rate limiting if using global limits"
+    ],
+    "prevention": "Test rate limiter changes in staging before production"
+  },
+  "queue_backlog": {
+    "title": "Message Queue Backlog",
+    "severity": "high",
+    "steps": [
+      "Check consumer health and processing rate",
+      "Scale consumers horizontally",
+      "Check for poison messages blocking the queue",
+      "Monitor queue depth and consumer lag",
+      "Consider dead-letter queue for unprocessable messages"
+    ],
+    "prevention": "Set up queue depth monitoring with auto-scaling consumers"
+  },
+  "bad_deploy_regression": {
+    "title": "Bad Deployment Regression",
+    "severity": "critical",
+    "steps": [
+      "Identify the problematic deployment",
+      "Rollback to the previous version immediately",
+      "Verify service recovery after rollback",
+      "Analyze the deployment diff for the regression",
+      "Add regression test before re-deploying"
+    ],
+    "prevention": "Implement canary deployments and automated rollback"
+  },
+  "resource_limit_misconfig": {
+    "title": "Resource Limit Misconfiguration",
+    "severity": "high",
+    "steps": [
+      "Check current resource requests and limits",
+      "Compare against actual resource usage patterns",
+      "Adjust limits based on profiling data",
+      "Ensure requests match typical usage, limits allow for burst",
+      "Apply and verify the changes"
+    ],
+    "prevention": "Profile services and set data-driven resource limits"
+  },
+  "dns_resolution_failure": {
+    "title": "DNS Resolution Failure",
+    "severity": "critical",
+    "steps": [
+      "Check CoreDNS pods status: kubectl get pods -n kube-system",
+      "Verify DNS resolution from affected pod: nslookup <service>",
+      "Check CoreDNS logs for errors",
+      "Restart CoreDNS if necessary",
+      "Check for DNS policy misconfigurations"
+    ],
+    "prevention": "Monitor CoreDNS health and set up DNS failover"
+  },
+  "connection_leak": {
+    "title": "Connection Leak",
+    "severity": "high",
+    "steps": [
+      "Identify the leaking service via connection count metrics",
+      "Restart the affected service to release connections",
+      "Review code for unclosed connections or missing finally blocks",
+      "Implement connection pool max-lifetime settings",
+      "Add connection leak detection in tests"
+    ],
+    "prevention": "Use connection pool libraries with leak detection enabled"
+  },
+  "autoscaler_misconfig": {
+    "title": "Autoscaler Misconfiguration",
+    "severity": "medium",
+    "steps": [
+      "Check HPA configuration: kubectl get hpa",
+      "Verify the target metric is correctly scraped",
+      "Check metrics server is running",
+      "Adjust scaling thresholds and cooldown periods",
+      "Test scaling behavior under simulated load"
+    ],
+    "prevention": "Validate HPA configs in CI and load test scaling behavior"
+  }
+}

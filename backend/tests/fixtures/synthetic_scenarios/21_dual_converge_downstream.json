@@ -1,0 +1,124 @@
+{
+  "scenario_id": 21,
+  "name": "dual_converge_downstream",
+  "description": "Adversarial: Payment AND Auth fail independently, both cascading to api-gateway",
+  "category": "multi_root_cause",
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "auth",
+      "name": "Auth Service",
+      "revenue_weight": 7.0
+    },
+    {
+      "id": "product-catalog",
+      "name": "Product Catalog",
+      "revenue_weight": 6.0
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Service",
+      "revenue_weight": 8.0
+    },
+    {
+      "id": "order",
+      "name": "Order Service",
+      "revenue_weight": 9.0
+    },
+    {
+      "id": "payment",
+      "name": "Payment Service",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "notification",
+      "name": "Notification Service",
+      "revenue_weight": 3.0
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping Service",
+      "revenue_weight": 4.0
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "api-gateway",
+      "to": "auth"
+    },
+    {
+      "from": "api-gateway",
+      "to": "product-catalog"
+    },
+    {
+      "from": "product-catalog",
+      "to": "inventory"
+    },
+    {
+      "from": "api-gateway",
+      "to": "order"
+    },
+    {
+      "from": "order",
+      "to": "payment"
+    },
+    {
+      "from": "order",
+      "to": "inventory"
+    },
+    {
+      "from": "order",
+      "to": "notification"
+    },
+    {
+      "from": "order",
+      "to": "shipping"
+    }
+  ],
+  "injected_fault": null,
+  "injected_faults": [
+    {
+      "service": "payment",
+      "metric": "connection_pool",
+      "z_score": 5.0,
+      "severity": "critical",
+      "t_offset": 0
+    },
+    {
+      "service": "auth",
+      "metric": "error_rate",
+      "z_score": 4.9,
+      "severity": "critical",
+      "t_offset": 4
+    }
+  ],
+  "cascade": [
+    {
+      "service": "order",
+      "metric": "latency_ms",
+      "z_score": 3.4,
+      "severity": "high",
+      "t_offset": 10
+    },
+    {
+      "service": "api-gateway",
+      "metric": "error_rate",
+      "z_score": 4.0,
+      "severity": "critical",
+      "t_offset": 16
+    }
+  ],
+  "signature": null,
+  "ground_truth": {
+    "root_cause_services": [
+      "payment",
+      "auth"
+    ],
+    "expected_incidents": 2,
+    "is_false_positive": false
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "scenario_id": 8,
+  "name": "config_error",
+  "description": "Auth deployed with wrong DB connection string",
+  "category": "single_root_cause",
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "auth",
+      "name": "Auth Service",
+      "revenue_weight": 7.0
+    },
+    {
+      "id": "product-catalog",
+      "name": "Product Catalog",
+      "revenue_weight": 6.0
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Service",
+      "revenue_weight": 8.0
+    },
+    {
+      "id": "order",
+      "name": "Order Service",
+      "revenue_weight": 9.0
+    },
+    {
+      "id": "payment",
+      "name": "Payment Service",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "notification",
+      "name": "Notification Service",
+      "revenue_weight": 3.0
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping Service",
+      "revenue_weight": 4.0
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "api-gateway",
+      "to": "auth"
+    },
+    {
+      "from": "api-gateway",
+      "to": "product-catalog"
+    },
+    {
+      "from": "product-catalog",
+      "to": "inventory"
+    },
+    {
+      "from": "api-gateway",
+      "to": "order"
+    },
+    {
+      "from": "order",
+      "to": "payment"
+    },
+    {
+      "from": "order",
+      "to": "inventory"
+    },
+    {
+      "from": "order",
+      "to": "notification"
+    },
+    {
+      "from": "order",
+      "to": "shipping"
+    }
+  ],
+  "injected_fault": {
+    "service": "auth",
+    "metric": "error_rate",
+    "z_score": 5.7,
+    "severity": "critical",
+    "t_offset": 0
+  },
+  "injected_faults": null,
+  "cascade": [
+    {
+      "service": "api-gateway",
+      "metric": "error_rate",
+      "z_score": 4.1,
+      "severity": "critical",
+      "t_offset": 5
+    }
+  ],
+  "signature": null,
+  "ground_truth": {
+    "root_cause_service": "auth",
+    "root_cause_type": "config_error",
+    "affected_services": [
+      "api-gateway"
+    ],
+    "expected_incidents": 1,
+    "is_false_positive": false
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "scenario_id": 28,
+  "name": "planned_maintenance_window",
+  "description": "Scheduled shipping maintenance window",
+  "category": "false_positive",
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "auth",
+      "name": "Auth Service",
+      "revenue_weight": 7.0
+    },
+    {
+      "id": "product-catalog",
+      "name": "Product Catalog",
+      "revenue_weight": 6.0
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Service",
+      "revenue_weight": 8.0
+    },
+    {
+      "id": "order",
+      "name": "Order Service",
+      "revenue_weight": 9.0
+    },
+    {
+      "id": "payment",
+      "name": "Payment Service",
+      "revenue_weight": 10.0
+    },
+    {
+      "id": "notification",
+      "name": "Notification Service",
+      "revenue_weight": 3.0
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping Service",
+      "revenue_weight": 4.0
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "api-gateway",
+      "to": "auth"
+    },
+    {
+      "from": "api-gateway",
+      "to": "product-catalog"
+    },
+    {
+      "from": "product-catalog",
+      "to": "inventory"
+    },
+    {
+      "from": "api-gateway",
+      "to": "order"
+    },
+    {
+      "from": "order",
+      "to": "payment"
+    },
+    {
+      "from": "order",
+      "to": "inventory"
+    },
+    {
+      "from": "order",
+      "to": "notification"
+    },
+    {
+      "from": "order",
+      "to": "shipping"
+    }
+  ],
+  "injected_fault": {
+    "service": "shipping",
+    "metric": "restart_count",
+    "z_score": 4.0,
+    "severity": "high",
+    "t_offset": 0
+  },
+  "injected_faults": null,
+  "cascade": [],
+  "signature": [
+    0.0,
+    5.0,
+    7.0,
+    4.0,
+    4.0,
+    1.0,
+    10.0
+  ],
+  "ground_truth": {
+    "is_false_positive": true,
+    "expected_suppression": true,
+    "pattern_tag": "planned_maintenance_window"
+  }
+}

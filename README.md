@@ -50,7 +50,7 @@ In distributed microservice architectures, failures **never happen in isolation*
 
 **This project automates that entire investigation in 780ms.**
 
----
+
 
 ## 📊 Benchmark Results (30 Ground-Truth Scenarios)
 

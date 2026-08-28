@@ -19,7 +19,7 @@
   <p><em>Full SRE Command Center — Live Dependency Graph · Streaming EWMA Telemetry · Causal Incident Reconstruction · Counterfactual What-If Simulation</em></p>
 </div>
 
----
+
 
 ## 🚨 The Real Problem This Solves
 

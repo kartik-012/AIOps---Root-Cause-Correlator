@@ -79,7 +79,7 @@ In distributed microservice architectures, failures **never happen in isolation*
 | Mean Time to Correlate (MTTC) | < 2.0s | **0.78s** | ✅ |
 | Automated Test Suite | 16 tests | **16/16 passed** | ✅ |
 
----
+
 
 ## 🧠 How It Works — The 7-Stage Engine Pipeline
 
@@ -124,7 +124,7 @@ In distributed microservice architectures, failures **never happen in isolation*
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
----
+
 
 ## 🔥 Key Differentiators vs. Other Tools
 
@@ -141,7 +141,7 @@ In distributed microservice architectures, failures **never happen in isolation*
   Explainable evidence chain?  ✅ YES       ❌ No       ❌ No       ❌ No
 ```
 
----
+
 
 ## ⚠️ Hardest Engineering Challenges Faced
 
@@ -160,7 +160,7 @@ In distributed microservice architectures, failures **never happen in isolation*
   [Inventory CPU Spike] → Incident B  ← CORRECTLY ISOLATED
 ```
 
----
+
 
 ### Challenge 2 — Adaptive Threshold Drift (Statistical Precision Problem)
 **The Issue:** A static z-score threshold of 2.0σ works at 9am but fires false alarms during the Monday morning traffic surge, and misses slow-burn leaks on quiet Sunday nights.
@@ -177,28 +177,28 @@ In distributed microservice architectures, failures **never happen in isolation*
       t=0   t=10min   t=20min   t=30min
 ```
 
----
+
 
 ### Challenge 3 — False-Positive Suppression Precision (Silent Failure Risk)
 **The Issue:** Suppression is the only component where a bug causes *silence* — a real incident gets filtered out, and nobody knows. Over-aggressive suppression is worse than no suppression.
 
 **The Solution:** 7-dimensional feature vectors stored in PostgreSQL with `pgvector`. Cosine similarity threshold of 0.85 (tuned against the 8 false-positive scenarios). Every suppression is logged with the matching historical incident — never silently dropped.
 
----
+
 
 ### Challenge 4 — Keeping the LLM Layer Thin (Discipline Problem)
 **The Issue:** The temptation to let the LLM "help" reason about root causes erodes the entire project's differentiation. LLMs hallucinate under ambiguity — the exact scenario that occurs during complex multi-service failures.
 
 **The Solution:** Strict architectural boundary. The LLM receives only the already-computed structured output: root cause service, confidence score, evidence list, affected services. It formats the post-mortem. It never touches detection or correlation logic.
 
----
+
 
 ### Challenge 5 — Screen-Projected 3D Labels (60 FPS Rendering Problem)
 **The Issue:** Three.js canvas sprite billboard labels blur at non-native resolution and don't track with camera orbit correctly, causing a poor UX on the 3D spatial mesh view.
 
 **The Solution:** Project 3D world positions to 2D screen coordinates using `tempVec.copy(worldPos).project(camera)`, then render labels as standard HTML DOM elements using `requestAnimationFrame` direct DOM manipulation — completely bypassing React state for zero-lag 60 FPS tracking.
 
----
+
 
 ## 📈 System Performance Statistics
 
@@ -224,7 +224,7 @@ In distributed microservice architectures, failures **never happen in isolation*
   └──────────────────────────────────────────────────────────┘
 ```
 
----
+
 
 ## 🏗️ System Architecture
 
@@ -257,7 +257,7 @@ In distributed microservice architectures, failures **never happen in isolation*
   └────────────────────┘              └────────────────────┘
 ```
 
----
+
 
 ## 🗂️ Repository Structure
 
@@ -310,7 +310,7 @@ aiops-root-cause-correlator/
     └── rules.md                          ← Engineering standards & AI boundaries
 ```
 
----
+
 
 ## 🚀 Quick Start
 
@@ -327,7 +327,7 @@ docker-compose up --build
 | **Dashboard** | http://localhost:5173 |
 | **API Swagger Docs** | http://localhost:8001/docs |
 
----
+
 
 ### Option B — Manual Setup
 
@@ -346,7 +346,7 @@ npm install && npm run dev
 cd backend && python -m pytest tests/ -v
 ```
 
----
+
 
 ## 🛠️ Technology Stack
 
@@ -364,7 +364,7 @@ cd backend && python -m pytest tests/ -v
 | Testing | pytest + pytest-asyncio | 16/16 tests across 30 benchmark scenarios |
 | Containerization | Docker + Docker Compose | Turnkey full-stack deployment |
 
----
+
 
 ## 📜 License
 

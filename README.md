@@ -2,7 +2,7 @@
 
 > **Autonomous AI-Powered Incident Correlation Engine — From Alert Storm to Root Cause in under 800ms.**
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/) 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com) 
 [![React 18](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org) 
 [![Three.js](https://img.shields.io/badge/Three.js-WebGL-black.svg?logo=three.js)](https://threejs.org)

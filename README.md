@@ -125,7 +125,6 @@ In distributed microservice architectures, failures **never happen in isolation*
 ```
 
 
-
 ## 🔥 Key Differentiators vs. Other Tools
 
 ```

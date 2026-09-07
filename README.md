@@ -343,8 +343,6 @@ npm install && npm run dev
 cd backend && python -m pytest tests/ -v
 ```
 
-
-
 ## 🛠️ Technology Stack
 
 | Layer | Technology | Why |

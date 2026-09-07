@@ -159,7 +159,6 @@ In distributed microservice architectures, failures **never happen in isolation*
 ```
 
 
-
 ### Challenge 2 — Adaptive Threshold Drift (Statistical Precision Problem)
 **The Issue:** A static z-score threshold of 2.0σ works at 9am but fires false alarms during the Monday morning traffic surge, and misses slow-burn leaks on quiet Sunday nights.
 

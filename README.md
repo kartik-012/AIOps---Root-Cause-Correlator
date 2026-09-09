@@ -20,7 +20,6 @@
 </div>
 
 
-
 ## 🚨 The Real Problem This Solves
 
 > **"When one microservice fails, 47 alerts fire. Engineers spend 1–4 hours figuring out which one actually caused it."**

@@ -48,7 +48,6 @@ Root-Cause Hypothesis + Confidence
 
 Each stage narrows the problem space: raw telemetry becomes normalized events, normalized events become correlated incident clusters, and correlated clusters become a single ranked explanation of what actually failed — with a confidence score attached rather than a bare guess.
 
----
 
 ## 4. TECHNOLOGY STACK
 

@@ -64,7 +64,7 @@ Each stage narrows the problem space: raw telemetry becomes normalized events, n
 | **Infrastructure** | Docker / Kubernetes |
 | **API** | REST / WebSocket |
 
----
+
 
 ## Why It Matters
 

@@ -29,7 +29,7 @@ The platform continuously ingests observability signals from a distributed micro
 | **Incident Analyzer** | Assembles the final incident timeline, impact, and evidence trail |
 | **API / Dashboard** | Exposes results via REST/WebSocket and visualizes incidents in real time |
 
----
+
 
 ## 3. DATA & AI PIPELINE
 

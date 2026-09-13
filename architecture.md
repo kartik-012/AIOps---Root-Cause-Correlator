@@ -65,7 +65,6 @@ Each stage narrows the problem space: raw telemetry becomes normalized events, n
 | **API** | REST / WebSocket |
 
 
-
 ## Why It Matters
 
 **Before:** Hundreds of alerts → Manual investigation → Long MTTR

@@ -3,7 +3,6 @@
 **High-level system design, data flow, components and AI-driven root-cause analysis**
 
 
-
 ## 1. SYSTEM ARCHITECTURE
 
 > Overview of the distributed AIOps platform and how observability data flows through ingestion, correlation, AI reasoning and incident analysis.

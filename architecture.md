@@ -30,7 +30,6 @@ The platform continuously ingests observability signals from a distributed micro
 | **API / Dashboard** | Exposes results via REST/WebSocket and visualizes incidents in real time |
 
 
-
 ## 3. DATA & AI PIPELINE
 
 > How logs, metrics, traces and events are transformed into correlated incidents and ranked root-cause hypotheses.

@@ -8,7 +8,7 @@
 
 ```
 Telemetry → Ingestion → Processing → Correlation → Root Cause → Incident Response
-```
+``` 
 
 The platform continuously ingests observability signals from a distributed microservice environment, normalizes and correlates them in real time, and applies graph-based + AI reasoning to identify the most probable root cause of an incident — reducing alert noise and manual investigation time.
 

@@ -1,4 +1,4 @@
-"""Evaluation Runner — Executes the full 30-scenario test suite against real engines.
+"""Evaluation Runner — Executes the full 30-scenario test suite against real engines. 
 
 Computes precision, recall, top-k accuracy, separation accuracy, and blast radius metrics.
 """

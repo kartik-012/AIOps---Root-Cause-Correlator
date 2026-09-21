@@ -47,7 +47,7 @@ class CorrelatedIncident:
     is_multi_root_cause: bool
     timestamp_start: datetime
     anomalies: list[AnomalyEvent]
-    signature: list[float] = field(default_factory=list)
+    signature: list[float] = field(default_factory=list) 
 
 
 class CorrelationEngine:

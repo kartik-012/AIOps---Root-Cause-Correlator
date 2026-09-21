@@ -12,7 +12,7 @@ from typing import Any
 import networkx as nx
 
 from app.graph.dependency_graph import DependencyGraph
-
+ 
 
 @dataclass
 class AnomalyEvent:

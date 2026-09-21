@@ -4,7 +4,7 @@ Uses NetworkX dependency topology to isolate independent incident components
 and locate the causal root for each component via graph topology and temporal precedence.
 Handles adversarial cases where independent root causes converge on a shared caller.
 """
- 
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import uuid

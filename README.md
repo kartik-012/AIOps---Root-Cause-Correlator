@@ -174,7 +174,6 @@ In distributed microservice architectures, failures **never happen in isolation*
 ```
 
 
-
 ### Challenge 3 — False-Positive Suppression Precision (Silent Failure Risk)
 **The Issue:** Suppression is the only component where a bug causes *silence* — a real incident gets filtered out, and nobody knows. Over-aggressive suppression is worse than no suppression.
 

@@ -359,7 +359,6 @@ cd backend && python -m pytest tests/ -v
 | Containerization | Docker + Docker Compose | Turnkey full-stack deployment |
 
 
-
 ## 📜 License
 
 MIT License — see [LICENSE](LICENSE) for details.

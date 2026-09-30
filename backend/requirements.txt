@@ -22,3 +22,4 @@ grpcio>=1.62.0
 grpcio-tools>=1.62.0
 protobuf>=4.25.0
 strawberry-graphql[fastapi]>=0.230.0
+prometheus-client>=0.20.0

@@ -95,7 +95,7 @@ python scripts/demo_walkthrough.py
 | **Multi-Root-Cause Separation** | $\ge 85\%$ | **100.0%** (12 scenarios) | ✅ |
 | **False-Positive Suppression Precision** | $\ge 90\%$ | **100.0%** (8 scenarios) | ✅ |
 | **Mean Time to Correlate (MTTC)** | $< 2.0\text{s}$ | **0.78s** | ✅ |
-| **Automated Test Suite** | 27 tests | **27/27 Passed (100%)** | ✅ |
+| **Automated Test Suite** | 30 tests | **30/30 Passed (100%)** | ✅ |
 
 ---
 

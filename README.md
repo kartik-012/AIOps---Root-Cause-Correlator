@@ -12,7 +12,7 @@
 [![PostgreSQL 16 + pgvector](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-336791.svg?logo=postgresql)](https://github.com/pgvector/pgvector)
 [![Redis 7](https://img.shields.io/badge/Redis-7-DC382D.svg?logo=redis)](https://redis.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests: 26/26 Passed](https://img.shields.io/badge/Tests-26%2F26%20Passed%20(100%25)-brightgreen.svg)]()
+[![Tests: 30/30 Passed](https://img.shields.io/badge/Tests-30%2F30%20Passed%20(100%25)-brightgreen.svg)]()
 [![Top-1 Accuracy](https://img.shields.io/badge/Top--1%20Accuracy-100%25%20(30%2F30)-gold.svg)]()
  
 <br /> 
@@ -79,7 +79,7 @@ In distributed microservice architectures, failures **never happen in isolation*
 | False-Positive Suppression Recall | ≥ 85% | **100.0%** | ✅ |
 | Blast Radius Prediction Accuracy | ≥ 85% | **100.0%** (8 scenarios) | ✅ |
 | Mean Time to Correlate (MTTC) | < 2.0s | **0.78s** | ✅ |
-| Automated Test Suite | 26 tests | **26/26 passed (100%)** | ✅ |
+| Automated Test Suite | 30 tests | **30/30 passed (100%)** | ✅ |
 
 
 

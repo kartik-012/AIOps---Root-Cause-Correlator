@@ -17,3 +17,8 @@ numpy==2.2.6
 httpx==0.28.1
 pytest==8.3.5
 pytest-asyncio==0.25.3
+aiokafka>=0.10.0
+grpcio>=1.62.0
+grpcio-tools>=1.62.0
+protobuf>=4.25.0
+strawberry-graphql[fastapi]>=0.230.0

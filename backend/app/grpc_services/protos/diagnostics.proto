@@ -1,0 +1,70 @@
+syntax = "proto3";
+package aiops.diagnostics;
+
+service DiagnosticService {
+  // Get current health snapshot of a service
+  rpc GetHealthStatus (HealthRequest) returns (HealthResponse);
+  
+  // Get detailed resource metrics
+  rpc GetResourceMetrics (ResourceRequest) returns (ResourceResponse);
+  
+  // Stream live metrics (server-side streaming)
+  rpc StreamMetrics (StreamRequest) returns (stream MetricUpdate);
+}
+
+message HealthRequest {
+  string service_id = 1;
+}
+
+message HealthResponse {
+  string service_id = 1;
+  string service_name = 2;
+  HealthStatus status = 3;
+  double cpu_usage_percent = 4;
+  double memory_usage_percent = 5;
+  double disk_io_percent = 6;
+  int32 active_connections = 7;
+  int32 max_connections = 8;
+  double error_rate = 9;
+  double p95_latency_ms = 10;
+  int64 uptime_seconds = 11;
+  string last_checked = 12;
+  repeated string active_alerts = 13;
+}
+
+enum HealthStatus {
+  HEALTHY = 0;
+  DEGRADED = 1;
+  UNHEALTHY = 2;
+  CRITICAL = 3;
+}
+
+message ResourceRequest {
+  string service_id = 1;
+  repeated string metric_types = 2;  // e.g., ["cpu", "memory", "connections"]
+}
+
+message ResourceResponse {
+  string service_id = 1;
+  repeated ResourceMetric metrics = 2;
+}
+
+message ResourceMetric {
+  string metric_name = 1;
+  double current_value = 2;
+  double threshold = 3;
+  string unit = 4;
+  string status = 5;  // "normal", "warning", "critical"
+}
+
+message StreamRequest {
+  string service_id = 1;
+  int32 interval_seconds = 2;
+}
+
+message MetricUpdate {
+  string service_id = 1;
+  string metric_type = 2;
+  double value = 3;
+  string timestamp = 4;
+}

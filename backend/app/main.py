@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from strawberry.fastapi import GraphQLRouter
 
 from app.config import get_settings
 from app.api.v1 import (
@@ -18,9 +19,14 @@ from app.api.v1 import (
     ws,
     chaos,
     integrations,
+    kafka_ingest,
+    diagnostics,
 )
 from app.dependencies import get_session_factory
 from app.models.db_models import Service, ServiceDependency
+from app.kafka import get_kafka_producer
+from app.kafka.consumers import TelemetryConsumer, AuditConsumer
+from app.graphql import schema as graphql_schema
 
 settings = get_settings()
 
@@ -69,7 +75,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[AIOps Startup] Note: Could not auto-seed database: {e}")
 
+    try:
+        producer = get_kafka_producer()
+        await producer.start()
+        
+        telemetry_consumer = TelemetryConsumer()
+        audit_consumer = AuditConsumer()
+        await telemetry_consumer.start()
+        await audit_consumer.start()
+        app.state.telemetry_consumer = telemetry_consumer
+        app.state.audit_consumer = audit_consumer
+    except Exception as e:
+        print(f"[AIOps Startup] Note: Could not start Kafka: {e}")
+
     yield
+    
+    try:
+        producer = get_kafka_producer()
+        await producer.stop()
+        if hasattr(app.state, "telemetry_consumer"):
+            await app.state.telemetry_consumer.stop()
+        if hasattr(app.state, "audit_consumer"):
+            await app.state.audit_consumer.stop()
+    except Exception as e:
+        print(f"[AIOps Shutdown] Note: Error stopping Kafka: {e}")
 
 
 app = FastAPI(
@@ -109,8 +138,14 @@ app.include_router(runbook.router, prefix=prefix, tags=["Runbook"])
 app.include_router(evaluation.router, prefix=prefix, tags=["Evaluation"])
 app.include_router(chaos.router, prefix=prefix, tags=["Chaos Studio"])
 app.include_router(integrations.router, prefix=prefix, tags=["Integrations"])
+app.include_router(kafka_ingest.router, prefix=prefix, tags=["Kafka Ingest"])
+app.include_router(diagnostics.router, prefix=prefix, tags=["Diagnostics"])
 app.include_router(ws.router, prefix=prefix, tags=["WebSocket"])
 app.include_router(ws.router, tags=["WebSocket Direct"])
+
+# Mount GraphQL endpoint with subscriptions support
+graphql_app = GraphQLRouter(graphql_schema, subscription_protocols=["graphql-transport-ws", "graphql-ws"])
+app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL Control Plane"])
 
 
 @app.get("/health", tags=["Health"])
@@ -121,3 +156,10 @@ def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
     }
+
+
+@app.get("/metrics", tags=["Observability"])
+def prometheus_metrics():
+    """Prometheus scraping endpoint exposing custom SRE metrics."""
+    from app.metrics import get_metrics_response
+    return get_metrics_response()

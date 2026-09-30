@@ -76,4 +76,40 @@ export const api = {
     })
     return res.json()
   },
+
+  // gRPC Diagnostics
+  async getServiceHealth(serviceId) {
+    const res = await fetch(`${API_BASE}/diagnostics/${serviceId}/health`)
+    return res.json()
+  },
+
+  async getAllDiagnostics() {
+    const res = await fetch(`${API_BASE}/diagnostics/all`)
+    return res.json()
+  },
+
+  // Kafka Event Bus
+  async getKafkaStatus() {
+    const res = await fetch(`${API_BASE}/kafka/status`)
+    return res.json()
+  },
+
+  async publishKafkaTelemetry(payload) {
+    const res = await fetch(`${API_BASE}/kafka/publish-telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return res.json()
+  },
+
+  // GraphQL Gateway
+  async queryGraphQL(query, variables = {}) {
+    const res = await fetch('/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    })
+    return res.json()
+  },
 }

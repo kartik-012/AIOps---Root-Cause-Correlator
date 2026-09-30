@@ -33,7 +33,65 @@ services:
       timeout: 5s
       retries: 5
 
-  # AIOps Backend Engine (FastAPI + NetworkX + EWMA + pgvector)
+  # Apache Kafka 3.7+ in KRaft Mode (No ZooKeeper required)
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: aiops-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # Kafka UI Dashboard for Topic & Consumer Inspection
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: aiops-kafka-ui
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # gRPC Microservices Diagnostic Engine (Standalone Service)
+  grpc-diagnostics:
+    build:
+      context: ./backend
+      dockerfile: app/grpc_services/Dockerfile.grpc
+    container_name: aiops-grpc-diagnostics
+    ports:
+      - "50051:50051"
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # AIOps Backend Engine (FastAPI + NetworkX + EWMA + Kafka + gRPC + GraphQL + pgvector)
   backend:
     build:
       context: ./backend
@@ -43,6 +101,9 @@ services:
       DATABASE_URL: postgresql://aiops:aiops_secret@postgres:5432/aiops_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      GRPC_DIAGNOSTIC_TARGET: grpc-diagnostics:50051
+      INTERNAL_SIM_API: http://grpc-diagnostics:8000
       SECRET_KEY: aiops_super_secret_production_key_2026
       DEBUG: "true"
       EWMA_ALPHA: "0.3"
@@ -54,6 +115,10 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      grpc-diagnostics:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 

@@ -17,6 +17,7 @@ import { LiveTelemetryChart } from './components/LiveTelemetryChart'
 import { ChaosStudio } from './components/ChaosStudio'
 import { useIncidentSocket } from './hooks/useIncidentSocket'
 import { api } from './hooks/useApi'
+import { DistributedPlatformModal } from './components/DistributedPlatformModal'
 import { sound } from './utils/audio'
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
   const [postMortemOpen, setPostMortemOpen] = useState(false)
   const [slackModalOpen, setSlackModalOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [distributedModalOpen, setDistributedModalOpen] = useState(false)
   const [userName, setUserName] = useState(() => localStorage.getItem('aiops_commander_name') || 'Alex Rivera')
   const [currentTime, setCurrentTime] = useState('')
   const [view3D, setView3D] = useState(false)
@@ -248,6 +250,14 @@ export default function App() {
             }}
           >
             🔔 Slack Alerts
+          </button>
+          <button
+            onClick={() => {
+              sound.click()
+              setDistributedModalOpen(true)
+            }}
+          >
+            ⚡ Kafka · gRPC · GraphQL
           </button>
           <button
             onClick={() => {
@@ -507,6 +517,15 @@ export default function App() {
           setSlackModalOpen(false)
         }}
         activeIncident={incidentDetail || activeInc}
+      />
+
+      {/* Distributed Platform Modal (Kafka / gRPC / GraphQL) */}
+      <DistributedPlatformModal
+        isOpen={distributedModalOpen}
+        onClose={() => {
+          sound.click()
+          setDistributedModalOpen(false)
+        }}
       />
 
       {/* Toast Notification */}

@@ -2,14 +2,17 @@
 
 > **Autonomous AI-Powered Incident Correlation Engine — From Alert Storm to Root Cause in under 800ms.**
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/) 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com) 
-[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org) 
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
+[![Apache Kafka](https://img.shields.io/badge/Kafka-KRaft%20Mode-231F20.svg?logo=apachekafka)](https://kafka.apache.org)
+[![gRPC](https://img.shields.io/badge/gRPC-Protobuf%20Diagnostics-244c5a.svg?logo=grpc)](https://grpc.io)
+[![GraphQL](https://img.shields.io/badge/GraphQL-Strawberry-E10098.svg?logo=graphql)](https://strawberry.rocks)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org)
 [![Three.js](https://img.shields.io/badge/Three.js-WebGL-black.svg?logo=three.js)](https://threejs.org)
 [![PostgreSQL 16 + pgvector](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-336791.svg?logo=postgresql)](https://github.com/pgvector/pgvector)
 [![Redis 7](https://img.shields.io/badge/Redis-7-DC382D.svg?logo=redis)](https://redis.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests: 16/16 Passed](https://img.shields.io/badge/Tests-16%2F16%20Passed%20(100%25)-brightgreen.svg)]()
+[![Tests: 26/26 Passed](https://img.shields.io/badge/Tests-26%2F26%20Passed%20(100%25)-brightgreen.svg)]()
 [![Top-1 Accuracy](https://img.shields.io/badge/Top--1%20Accuracy-100%25%20(30%2F30)-gold.svg)]()
  
 <br /> 
@@ -76,19 +79,19 @@ In distributed microservice architectures, failures **never happen in isolation*
 | False-Positive Suppression Recall | ≥ 85% | **100.0%** | ✅ |
 | Blast Radius Prediction Accuracy | ≥ 85% | **100.0%** (8 scenarios) | ✅ |
 | Mean Time to Correlate (MTTC) | < 2.0s | **0.78s** | ✅ |
-| Automated Test Suite | 16 tests | **16/16 passed** | ✅ |
+| Automated Test Suite | 26 tests | **26/26 passed (100%)** | ✅ |
 
 
 
-## 🧠 How It Works — The 7-Stage Engine Pipeline
+## 🧠 How It Works — The 8-Stage Distributed Engine Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    AIOPS RCA ENGINE PIPELINE                        │
+│             DISTRIBUTED INCIDENT INTELLIGENCE PIPELINE              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  [1] TELEMETRY INGESTION                                           │
-│      └─► Streaming metrics/logs/traces via WebSocket               │
+│  [1] EVENT BACKBONE INGESTION  (Apache Kafka KRaft)                 │
+│      └─► service.telemetry & service.errors topic streams           │
 │                │                                                    │
 │                ▼                                                    │
 │  [2] EWMA ANOMALY DETECTION                                        │
@@ -99,27 +102,33 @@ In distributed microservice architectures, failures **never happen in isolation*
 │  [3] CAUSAL GRAPH CORRELATION  (NetworkX)                          │
 │      └─► Place anomalies on directed dependency graph              │
 │          └─► Connected components → separate incidents             │
-│              └─► Backward walk → find topological origin           │
+│              └─► Backward walk → isolate topological root cause    │
 │                │                                                    │
 │                ▼                                                    │
-│  [4] HISTORICAL SUPPRESSION  (pgvector + cosine similarity)        │
+│  [4] gRPC DIAGNOSTIC VERIFICATION  (Protobuf Port 50051)            │
+│      └─► Queries suspect microservice GetHealthStatus & Metrics    │
+│          └─► Corroborates runtime metrics → adjusts confidence     │
+│                │                                                    │
+│                ▼                                                    │
+│  [5] HISTORICAL SUPPRESSION  (pgvector + cosine similarity)        │
 │      └─► Compare 7-dim feature vector vs known benign patterns     │
 │          └─► similarity ≥ 0.85 → suppress (log, never drop)        │
 │                │                                                    │
 │                ▼                                                    │
-│  [5] BLAST RADIUS PREDICTION                                       │
+│  [6] BLAST RADIUS PREDICTION                                       │
 │      └─► Forward graph walk → predict next-to-fail services        │
 │          └─► Confidence score + estimated ETA                      │
 │                │                                                    │
 │                ▼                                                    │
-│  [6] LLM EXPLANATION LAYER  (thin, read-only)                      │
-│      └─► Formats structured engine output as human-readable report │
-│          └─► Never performs detection or correlation itself         │
+│  [7] GRAPHQL CONTROL PLANE  (Strawberry /graphql)                   │
+│      └─► Real-time investigation queries + WebSocket subscriptions │
+│          └─► Live React Three.js Neural Mesh visualizer            │
 │                │                                                    │
 │                ▼                                                    │
-│  [7] HUMAN-IN-THE-LOOP RESPONSE                                    │
-│      └─► Runbook matched to root-cause type                        │
-│          └─► Human must approve — nothing auto-executes            │
+│  [8] HUMAN-APPROVED REMEDIATION & KAFKA AUDIT                      │
+│      └─► Deterministic runbook action proposal                     │
+│          └─► Human approval gate → remediation.* Kafka events      │
+│              └─► Immutable audit.events log emitted                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

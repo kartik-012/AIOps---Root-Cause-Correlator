@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from app.dependencies import DBSession
 from app.models.db_models import Service, Anomaly, MetricRaw
 from app.api.v1.ws import broadcast_event
+from app.kafka import get_kafka_producer
+from app.kafka.events import TelemetryEvent
 
 router = APIRouter()
 
@@ -56,6 +58,13 @@ async def inject_chaos(payload: ChaosInjectRequest, db: DBSession):
                 "severity": "critical",
                 "timestamp": t0.isoformat(),
             })
+            producer = get_kafka_producer()
+            await producer.publish_telemetry(TelemetryEvent(
+                service_id=str(pay.id),
+                metric_type="connection_pool",
+                value=98.5,
+                timestamp=t0
+            ))
 
         if ord_s:
             t1 = t0 + timedelta(seconds=5)
@@ -72,12 +81,26 @@ async def inject_chaos(payload: ChaosInjectRequest, db: DBSession):
                 "severity": "high",
                 "timestamp": t1.isoformat(),
             })
+            producer = get_kafka_producer()
+            await producer.publish_telemetry(TelemetryEvent(
+                service_id=str(ord_s.id),
+                metric_type="latency_ms",
+                value=480.0,
+                timestamp=t1
+            ))
 
         if gw:
             t2 = t0 + timedelta(seconds=10)
             a3 = Anomaly(service_id=gw.id, metric_type="error_rate", z_score=3.1, severity="medium", detected_at=t2)
             db.add(a3)
             injected.append({"service": gw.name, "metric": "error_rate", "z_score": 3.1, "severity": "medium"})
+            producer = get_kafka_producer()
+            await producer.publish_telemetry(TelemetryEvent(
+                service_id=str(gw.id),
+                metric_type="error_rate",
+                value=5.0, # Dummy value
+                timestamp=t2
+            ))
 
     elif payload.scenario == "memory_leak":
         auth = svc_map.get("auth-service") or svc_map.get("auth")

@@ -1,4 +1,8 @@
-"""Correlation Engine router — Clusters anomalies into incidents and identifies root causes."""
+"""Correlation Engine router — Clusters anomalies into incidents and identifies root causes.
+
+Includes gRPC diagnostic verification step to validate root cause hypothesis
+and Kafka event publishing for event-driven downstream consumers.
+"""
 
 from datetime import datetime, timezone
 import uuid
@@ -8,9 +12,13 @@ from sqlalchemy import select
 from app.dependencies import DBSession
 from app.graph.dependency_graph import DependencyGraph
 from app.engines.correlation_engine import CorrelationEngine, AnomalyEvent
+from app.engines.verification_engine import VerificationEngine
+from app.engines.remediation_engine import get_remediation_engine
 from app.models.db_models import Service, ServiceDependency, Anomaly, Incident, IncidentAffectedService
 from app.models.schemas import CorrelationRunResponse, IncidentSummary, IncidentDetail, AffectedServiceOut, AnomalyOut
 from app.api.v1.ws import broadcast_event
+from app.kafka import get_kafka_producer
+from app.kafka.events import IncidentEvent
 
 router = APIRouter()
 
@@ -27,7 +35,7 @@ def _build_db_dependency_graph(db: DBSession) -> DependencyGraph:
 
 @router.post("/correlation/run", response_model=CorrelationRunResponse)
 async def run_correlation(db: DBSession):
-    """Trigger root cause correlation on all unclustered anomalies."""
+    """Trigger root cause correlation on all unclustered anomalies, verify via gRPC, and publish to Kafka."""
     unclustered_anomalies = db.scalars(
         select(Anomaly).where(Anomaly.incident_id.is_(None)).order_by(Anomaly.detected_at.asc())
     ).all()
@@ -53,67 +61,106 @@ async def run_correlation(db: DBSession):
     correlated = engine.correlate(engine_anomalies)
     summaries: list[IncidentSummary] = []
 
-    for inc in correlated:
-        root_svc_uuid = uuid.UUID(inc.root_cause_service_id) if inc.root_cause_service_id else None
+    verifier = VerificationEngine()
+    remediation_engine = get_remediation_engine()
+    kafka_producer = get_kafka_producer()
 
-        db_incident = Incident(
-            timestamp_start=inc.timestamp_start,
-            root_cause_service_id=root_svc_uuid,
-            root_cause_type=inc.root_cause_type,
-            confidence_at_detection=inc.confidence,
-            is_multi_root_cause=inc.is_multi_root_cause,
-            anomaly_signature=inc.signature if len(inc.signature) == 7 else None,
-        )
-        db.add(db_incident)
-        db.commit()
-        db.refresh(db_incident)
+    try:
+        for inc in correlated:
+            root_svc_uuid = uuid.UUID(inc.root_cause_service_id) if inc.root_cause_service_id else None
 
-        # Record affected services in propagation order
-        affected_names = []
-        for aff in inc.affected_services:
-            aff_uuid = uuid.UUID(aff.service_id)
-            ias = IncidentAffectedService(
-                incident_id=db_incident.id,
-                service_id=aff_uuid,
-                propagation_order=aff.propagation_order,
-                affected_at=aff.affected_at,
-            )
-            db.add(ias)
-            if aff.service_name and aff.service_id != inc.root_cause_service_id:
-                affected_names.append(aff.service_name)
+            # gRPC Verification Step: Cross-reference suspect with service diagnostic metrics
+            try:
+                verification_result = await verifier.verify_incident(inc)
+                final_confidence = verification_result.adjusted_confidence
+                verification_status = verification_result.verification_status
+            except Exception:
+                final_confidence = inc.confidence
+                verification_status = "unverified"
 
-        # Link anomalies to this incident
-        for a_event in inc.anomalies:
-            a_db = db.scalar(select(Anomaly).where(Anomaly.id == uuid.UUID(a_event.id)))
-            if a_db:
-                a_db.incident_id = db_incident.id
-
-        db.commit()
-
-        summaries.append(
-            IncidentSummary(
-                incident_id=db_incident.id,
-                root_cause_service=inc.root_cause_service_name,
+            db_incident = Incident(
+                timestamp_start=inc.timestamp_start,
                 root_cause_service_id=root_svc_uuid,
                 root_cause_type=inc.root_cause_type,
-                confidence=inc.confidence,
-                affected_services=affected_names,
+                confidence_at_detection=final_confidence,
                 is_multi_root_cause=inc.is_multi_root_cause,
-                timestamp_start=inc.timestamp_start,
+                anomaly_signature=inc.signature if len(inc.signature) == 7 else None,
             )
-        )
+            db.add(db_incident)
+            db.commit()
+            db.refresh(db_incident)
 
-        # Broadcast live incident event over WebSocket
-        await broadcast_event({
-            "type": "incident_correlated",
-            "incident_id": str(db_incident.id),
-            "root_cause_service": inc.root_cause_service_name,
-            "root_cause_type": inc.root_cause_type,
-            "confidence": inc.confidence,
-            "is_multi_root_cause": inc.is_multi_root_cause,
-            "affected_services": affected_names,
-            "timestamp": inc.timestamp_start.isoformat(),
-        })
+            # Record affected services in propagation order
+            affected_names = []
+            for aff in inc.affected_services:
+                aff_uuid = uuid.UUID(aff.service_id)
+                ias = IncidentAffectedService(
+                    incident_id=db_incident.id,
+                    service_id=aff_uuid,
+                    propagation_order=aff.propagation_order,
+                    affected_at=aff.affected_at,
+                )
+                db.add(ias)
+                if aff.service_name and aff.service_id != inc.root_cause_service_id:
+                    affected_names.append(aff.service_name)
+
+            # Link anomalies to this incident
+            for a_event in inc.anomalies:
+                a_db = db.scalar(select(Anomaly).where(Anomaly.id == uuid.UUID(a_event.id)))
+                if a_db:
+                    a_db.incident_id = db_incident.id
+
+            db.commit()
+
+            # Propose automated remediation action
+            rem_plan = remediation_engine.generate_plan(
+                incident_id=str(db_incident.id),
+                root_cause_type=inc.root_cause_type,
+                target_service=inc.root_cause_service_name,
+            )
+
+            # Publish incident.detected event to Kafka
+            await kafka_producer.publish_incident(
+                IncidentEvent(
+                    incident_id=str(db_incident.id),
+                    root_cause_service=inc.root_cause_service_name,
+                    severity="critical" if final_confidence >= 0.8 else "high",
+                    confidence=final_confidence,
+                    affected_services=affected_names,
+                    event_type="detected",
+                )
+            )
+
+            summaries.append(
+                IncidentSummary(
+                    incident_id=db_incident.id,
+                    root_cause_service=inc.root_cause_service_name,
+                    root_cause_service_id=root_svc_uuid,
+                    root_cause_type=inc.root_cause_type,
+                    confidence=final_confidence,
+                    affected_services=affected_names,
+                    is_multi_root_cause=inc.is_multi_root_cause,
+                    timestamp_start=inc.timestamp_start,
+                )
+            )
+
+            # Broadcast live incident event over WebSocket
+            await broadcast_event({
+                "type": "incident_correlated",
+                "incident_id": str(db_incident.id),
+                "root_cause_service": inc.root_cause_service_name,
+                "root_cause_type": inc.root_cause_type,
+                "confidence": final_confidence,
+                "verification_status": verification_status,
+                "remediation_plan_id": rem_plan.plan_id,
+                "remediation_action": rem_plan.action_title,
+                "is_multi_root_cause": inc.is_multi_root_cause,
+                "affected_services": affected_names,
+                "timestamp": inc.timestamp_start.isoformat(),
+            })
+
+    finally:
+        await verifier.close()
 
     return CorrelationRunResponse(incidents=summaries)
 

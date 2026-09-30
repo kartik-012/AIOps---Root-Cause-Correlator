@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY ./app /app/app
+
+# Set python path
+ENV PYTHONPATH=/app
+
+EXPOSE 50051
+EXPOSE 8000
+
+CMD ["python", "-m", "app.grpc_services.diagnostic_server"]

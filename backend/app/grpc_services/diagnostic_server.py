@@ -142,7 +142,6 @@ def run_internal_api():
     server.serve_forever()
 
 def serve():
-    global _global_state_manager
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     servicer = DiagnosticServiceServicer()
     servicer.state_manager = _global_state_manager

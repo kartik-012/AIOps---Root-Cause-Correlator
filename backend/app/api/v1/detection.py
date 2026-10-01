@@ -1,6 +1,6 @@
 """Detection engine router — Metric ingestion, real-time EWMA scoring, and anomaly listing."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 from fastapi import APIRouter, Query
 from sqlalchemy import select

@@ -57,10 +57,31 @@ jobs:
           # Stop the build if there are Python syntax errors or undefined names
           flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
 
+      - name: Run Database Migrations
+        env:
+          DATABASE_URL: postgresql://aiops:aiops_secret@127.0.0.1:5433/aiops_db
+        run: |
+          cd backend
+          python -c "
+          import time, psycopg2
+          for i in range(30):
+              try:
+                  conn = psycopg2.connect('postgresql://aiops:aiops_secret@127.0.0.1:5433/aiops_db')
+                  conn.close()
+                  print('PostgreSQL connection established!')
+                  break
+              except Exception as e:
+                  print(f'Waiting for PostgreSQL... ({e})')
+                  time.sleep(1)
+          else:
+              raise SystemExit('Timed out waiting for PostgreSQL')
+          "
+          alembic upgrade head
+
       - name: Execute Full Test Suite
         env:
-          DATABASE_URL: postgresql://aiops:aiops_secret@localhost:5433/aiops_db
-          REDIS_URL: redis://localhost:6380/0
+          DATABASE_URL: postgresql://aiops:aiops_secret@127.0.0.1:5433/aiops_db
+          REDIS_URL: redis://127.0.0.1:6380/0
         run: |
           cd backend
           python -m pytest tests/ -v --tb=short

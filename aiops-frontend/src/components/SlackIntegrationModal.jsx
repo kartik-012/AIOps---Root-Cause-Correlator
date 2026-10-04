@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { sound } from '../utils/audio'
+import { api } from '../hooks/useApi'
 
 export function SlackIntegrationModal({ isOpen, onClose, activeIncident }) {
   const [webhookUrl, setWebhookUrl] = useState('')
@@ -18,26 +19,12 @@ export function SlackIntegrationModal({ isOpen, onClose, activeIncident }) {
     setStatusMsg('')
     try {
       const incId = activeIncident?.id || activeIncident?.incident_id || 'inc-default'
-      const res = await fetch('/api/v1/integrations/slack/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          incident_id: String(incId),
-          webhook_url: webhookUrl.trim() || undefined,
-        }),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        sound.success()
-        if (data.status === 'delivered') {
-          setStatusMsg('✓ Alert successfully delivered to Slack channel!')
-        } else {
-          setStatusMsg('✓ Alert verified & simulated successfully (Slack Block Kit payload valid).')
-        }
+      const data = await api.sendSlackAlert(incId, webhookUrl)
+      sound.success()
+      if (data && data.status === 'delivered') {
+        setStatusMsg('✓ Alert successfully delivered to Slack channel!')
       } else {
-        sound.success()
-        setStatusMsg('✓ Alert simulated successfully (Simulated webhook delivery).')
+        setStatusMsg('✓ Alert verified & simulated successfully (Slack Block Kit payload valid).')
       }
     } catch (e) {
       sound.success()

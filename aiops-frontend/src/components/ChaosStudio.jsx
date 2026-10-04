@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { sound } from '../utils/audio'
+import { api } from '../hooks/useApi'
 
 export function ChaosStudio({ onInject, onReset }) {
   const [loading, setLoading] = useState(false)
@@ -9,12 +10,7 @@ export function ChaosStudio({ onInject, onReset }) {
     sound.alert()
     setLoading(true)
     try {
-      const res = await fetch('/api/v1/chaos/inject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario }),
-      })
-      const data = await res.json()
+      const data = await api.injectChaos(scenario)
       if (onInject) onInject(scenario, data)
     } catch (e) {
       console.error('Chaos injection failed:', e)
@@ -30,11 +26,7 @@ export function ChaosStudio({ onInject, onReset }) {
 
     try {
       // 1. Inject Chaos
-      await fetch('/api/v1/chaos/inject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: 'db_pool_exhaustion' }),
-      })
+      await api.injectChaos('db_pool_exhaustion')
 
       setTimeout(() => {
         sound.alert()
@@ -45,8 +37,7 @@ export function ChaosStudio({ onInject, onReset }) {
         sound.click()
         setDemoStep('3/4: gRPC Diagnostic Calling GetHealthStatus (:50051)...')
         // 2. Run correlation
-        const res = await fetch('/api/v1/correlation/run', { method: 'POST' })
-        const data = await res.json()
+        const data = await api.runCorrelation()
         if (onInject) onInject('db_pool_exhaustion', data)
       }, 2500)
 
@@ -67,11 +58,7 @@ export function ChaosStudio({ onInject, onReset }) {
     sound.success()
     setDemoStep(null)
     try {
-      await fetch('/api/v1/chaos/inject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: 'reset' }),
-      })
+      await api.injectChaos('reset')
       if (onReset) onReset()
     } catch (e) {
       console.error('Reset failed:', e)

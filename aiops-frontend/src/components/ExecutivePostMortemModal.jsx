@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { sound } from '../utils/audio'
+import { api } from '../hooks/useApi'
 
 export function ExecutivePostMortemModal({ isOpen, onClose, activeIncident }) {
   const [report, setReport] = useState(null)
@@ -16,13 +17,8 @@ export function ExecutivePostMortemModal({ isOpen, onClose, activeIncident }) {
       setLoading(true)
       try {
         const incId = activeIncident?.id || activeIncident?.incident_id || 'inc-default'
-        const res = await fetch('/api/v1/integrations/llm/post-mortem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ incident_id: String(incId) }),
-        })
-        if (res.ok) {
-          const data = await res.json()
+        const data = await api.generatePostMortem(incId)
+        if (data && data.markdown) {
           setReport(data)
         } else {
           throw new Error('API fallback')

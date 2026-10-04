@@ -1,5 +1,6 @@
-const RAW_BASE = import.meta.env.VITE_API_URL || ''
-const API_BASE = RAW_BASE ? `${RAW_BASE.replace(/\/$/, '')}/api/v1` : '/api/v1'
+export const RAW_BASE = import.meta.env.VITE_API_URL || ''
+export const API_BASE = RAW_BASE ? `${RAW_BASE.replace(/\/$/, '')}/api/v1` : '/api/v1'
+export const GRAPHQL_BASE = RAW_BASE ? `${RAW_BASE.replace(/\/$/, '')}/graphql` : '/graphql'
 
 export const api = {
   async getServices() {
@@ -106,10 +107,43 @@ export const api = {
 
   // GraphQL Gateway
   async queryGraphQL(query, variables = {}) {
-    const res = await fetch('/graphql', {
+    const res = await fetch(GRAPHQL_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, variables }),
+    })
+    return res.json()
+  },
+
+  // Chaos Studio
+  async injectChaos(scenario) {
+    const res = await fetch(`${API_BASE}/chaos/inject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario }),
+    })
+    return res.json()
+  },
+
+  // LLM Post-Mortem
+  async generatePostMortem(incidentId) {
+    const res = await fetch(`${API_BASE}/integrations/llm/post-mortem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incident_id: String(incidentId) }),
+    })
+    return res.json()
+  },
+
+  // Slack Webhook
+  async sendSlackAlert(incidentId, webhookUrl) {
+    const res = await fetch(`${API_BASE}/integrations/slack/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        incident_id: String(incidentId),
+        webhook_url: webhookUrl ? webhookUrl.trim() : undefined,
+      }),
     })
     return res.json()
   },

@@ -11,9 +11,18 @@ export function useIncidentSocket(onEvent) {
   const reconnectTimeoutRef = useRef(null)
 
   const connect = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    const wsUrl = `${protocol}//${host}/api/v1/ws/incidents`
+    let wsUrl
+    if (import.meta.env.VITE_WS_URL) {
+      wsUrl = `${import.meta.env.VITE_WS_URL.replace(/\/$/, '')}/api/v1/ws/incidents`
+    } else if (import.meta.env.VITE_API_URL) {
+      const apiUrl = new URL(import.meta.env.VITE_API_URL)
+      const wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+      wsUrl = `${wsProtocol}//${apiUrl.host}/api/v1/ws/incidents`
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const host = window.location.host
+      wsUrl = `${protocol}//${host}/api/v1/ws/incidents`
+    }
 
     try {
       const ws = new WebSocket(wsUrl)

@@ -1,4 +1,5 @@
-const API_BASE = '/api/v1'
+const RAW_BASE = import.meta.env.VITE_API_URL || ''
+const API_BASE = RAW_BASE ? `${RAW_BASE.replace(/\/$/, '')}/api/v1` : '/api/v1'
 
 export const api = {
   async getServices() {

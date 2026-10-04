@@ -1,0 +1,25 @@
+services:
+  # Python FastAPI AIOps Engine (Docker Container)
+  - type: web
+    name: aiops-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DEBUG
+        value: "false"
+
+  # React 18 + Vite 3D SRE Dashboard
+  - type: web
+    name: aiops-frontend
+    env: static
+    rootDir: aiops-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

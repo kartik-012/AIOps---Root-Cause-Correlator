@@ -1,372 +1,262 @@
 # ⚡ AIOps Root Cause Correlator
 
-> **Autonomous AI-Powered Incident Correlation Engine — From Alert Storm to Root Cause in under 800ms.**
+> **Autonomous Distributed Incident Correlation & Causal Inference Platform**  
+> *Isolating microservice root causes from cascading alert storms in under 800ms with deterministic graph theory, EWMA anomaly baselines, gRPC diagnostic verification, and Kafka event streaming.*
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Apache Kafka](https://img.shields.io/badge/Kafka-KRaft%20Mode-231F20.svg?logo=apachekafka)](https://kafka.apache.org)
-[![gRPC](https://img.shields.io/badge/gRPC-Protobuf%20Diagnostics-244c5a.svg?logo=grpc)](https://grpc.io)
-[![GraphQL](https://img.shields.io/badge/GraphQL-Strawberry-E10098.svg?logo=graphql)](https://strawberry.rocks)
-[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org)
-[![Three.js](https://img.shields.io/badge/Three.js-WebGL-black.svg?logo=three.js)](https://threejs.org)
-[![PostgreSQL 16 + pgvector](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-336791.svg?logo=postgresql)](https://github.com/pgvector/pgvector)
-[![Redis 7](https://img.shields.io/badge/Redis-7-DC382D.svg?logo=redis)](https://redis.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests: 30/30 Passed](https://img.shields.io/badge/Tests-30%2F30%20Passed%20(100%25)-brightgreen.svg)]()
-[![Top-1 Accuracy](https://img.shields.io/badge/Top--1%20Accuracy-100%25%20(30%2F30)-gold.svg)]()
- 
-<br /> 
- 
 <div align="center">
-  <img src="assets/dashboard-preview.png" alt="AIOps Root Cause Correlator — Full Dashboard View" width="100%" />
-  <p><em>Full SRE Command Center — Live Dependency Graph · Streaming EWMA Telemetry · Causal Incident Reconstruction · Counterfactual What-If Simulation</em></p>
+
+[![Live Production UI](https://img.shields.io/badge/Production%20UI-Vercel%20Live-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-ops-root-cause-correlator.vercel.app)
+[![Live Backend API](https://img.shields.io/badge/Backend%20API-Render%20Live-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://aiops-root-cause-correlator.onrender.com)
+[![Swagger API Docs](https://img.shields.io/badge/Swagger%20Docs-Interactive%20REST-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://aiops-root-cause-correlator.onrender.com/docs)
+[![GraphQL Control Plane](https://img.shields.io/badge/GraphQL-Strawberry%20Endpoint-E10098?style=for-the-badge&logo=graphql&logoColor=white)](https://aiops-root-cause-correlator.onrender.com/graphql)
+
+<br />
+
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React 18](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![Three.js](https://img.shields.io/badge/Three.js-WebGL%203D-000000.svg?logo=three.js&logoColor=white)](https://threejs.org)
+[![Apache Kafka](https://img.shields.io/badge/Kafka-KRaft%20Mode-231F20.svg?logo=apachekafka&logoColor=white)](https://kafka.apache.org)
+[![gRPC](https://img.shields.io/badge/gRPC-Protobuf%20Mesh-244c5a.svg?logo=grpc&logoColor=white)](https://grpc.io)
+[![CI Pipeline](https://img.shields.io/badge/CI%20Pipeline-100%25%20Passing-brightgreen.svg?logo=githubactions&logoColor=white)](https://github.com/kartik-012/AIOps---Root-Cause-Correlator/actions)
+[![Top-1 Accuracy](https://img.shields.io/badge/Top--1%20Accuracy-100%25%20(30%2F30)-gold.svg)]()
+
 </div>
 
+---
 
-## 🚨 The Real Problem This Solves
+## 🌐 Live Production Deployments
 
-> **"When one microservice fails, 47 alerts fire. Engineers spend 1–4 hours figuring out which one actually caused it."**
+Experience the live system running in production:
 
-In distributed microservice architectures, failures **never happen in isolation**. A single database connection pool exhaustion cascades into:
+| Deployment Component | Platform | Live URL | Purpose |
+| :--- | :---: | :--- | :--- |
+| **Frontend Web Console** | **Vercel** | [https://ai-ops-root-cause-correlator.vercel.app](https://ai-ops-root-cause-correlator.vercel.app) | Real-time SRE command center, 3D WebGL mesh, topology graph & live EWMA telemetry |
+| **Distributed Engine API** | **Render** | [https://aiops-root-cause-correlator.onrender.com](https://aiops-root-cause-correlator.onrender.com) | FastAPI orchestration engine, Kafka publisher, EWMA detector & correlation pipeline |
+| **Interactive OpenAPI Docs** | **Render** | [https://aiops-root-cause-correlator.onrender.com/docs](https://aiops-root-cause-correlator.onrender.com/docs) | Swagger UI for testing detection, chaos injection, runbooks, and predictions |
+| **GraphQL Control Plane** | **Render** | [https://aiops-root-cause-correlator.onrender.com/graphql](https://aiops-root-cause-correlator.onrender.com/graphql) | Strawberry GraphQL IDE querying unified multi-service incident graphs |
+
+---
+
+## 📸 System Visual Gallery
+
+### 1. Operations Command Center & Streaming Telemetry
+*Interactive Directed Acyclic Dependency Graph (DAG) visualizing upstream/downstream blast radius, causal propagation sequence, and real-time EWMA adaptive baseline anomaly deviation.*
+
+![Operations Dashboard](docs/images/01_operations_dashboard.png)
+
+---
+
+### 2. 3D Spatial Neural Topology Mesh
+*WebGL-accelerated Three.js spatial view with 360° auto-orbit, dynamic node clustering, and glowing spherical wavefronts tracking real-time fault propagation through microservice clusters.*
+
+![3D Spatial Neural Topology](docs/images/02_3d_spatial_mesh.png)
+
+---
+
+### 3. Executive Incident Post-Mortem & AI RCA Document Generator
+*Generates executive summaries, financial impact estimates, Mean Time to Detect (MTTD), causal graph proofs, and downloadable Markdown reports within seconds of incident isolation.*
+
+![Executive RCA Post-Mortem](docs/images/03_executive_rca_report.png)
+
+---
+
+### 4. gRPC Diagnostic Mesh (Port 50051)
+*Sub-millisecond remote procedure call health verification across services using Protocol Buffers (`diagnostics.proto`) to confirm suspect telemetry and boost causal confidence before alerting.*
+
+![gRPC Diagnostic Mesh](docs/images/05_grpc_diagnostic_mesh.png)
+
+---
+
+### 5. Apache Kafka Event Backbone (KRaft Mode 9092)
+*High-throughput event streaming architecture with 7 partitioned topics handling telemetry feeds, unhandled exceptions, incident lifecycle events, and compliance audit trails.*
+
+![Kafka Event Bus](docs/images/06_kafka_event_bus.png)
+
+---
+
+### 6. GraphQL Control Plane (`/graphql`)
+*Unified multi-service incident investigation gateway powered by Strawberry GraphQL, allowing SREs to query topology, blast radius, telemetry, and evidence in a single network round-trip.*
+
+![GraphQL Control Plane](docs/images/07_graphql_control_plane.png)
+
+---
+
+### 7. Multi-Channel Webhook Alerts (Slack & Discord)
+*Instant incident dispatch with rich Block Kit formatting, root cause isolation summaries, confidence metrics, and one-click runbook remediation actions.*
+
+![Slack Integration Modal](docs/images/04_slack_webhook_alerts.png)
+
+---
+
+### 8. 30-Scenario Ground-Truth Synthetic Benchmark Suite
+*Rigorous automated evaluation testing single root-cause cascades, multi-root-cause separation, false-positive suppression, and converging dependency cascades.*
+
+![Benchmark Evaluation](docs/images/08_benchmark_evaluation.png)
+
+---
+
+## 🚨 The Operational Problem
+
+> *"When a core microservice degrades, 50+ dependent services trigger cascading alerts simultaneously. On-call engineers spend 1 to 4 hours combing through logs to identify what actually broke."*
 
 ```
- DB Pool Exhaustion                             ← REAL ROOT CAUSE
-       │
-       ▼
- Payment Service (high latency)
-       │
-       ▼
- Order Service (timeout errors)                 ← ALERT FIRES
-       │
-       ▼
- API Gateway (5xx surge)                        ← ALERT FIRES
-       │
-       ▼
- Frontend (degraded UX, revenue loss)           ← ALERT FIRES
-       │
-       ▼
- Notification Service (retry storm)             ← ALERT FIRES
+  Postgres Connection Pool Saturation           ← [ORIGINATING ROOT CAUSE]
+                 │
+                 ▼
+       Payment Service (Latency spike: 920ms)
+                 │
+                 ▼
+       Order Service (Timeouts & 504 errors)     ← ALERT FIRES
+                 │
+                 ▼
+       API Gateway (Upstream error flood)       ← ALERT FIRES
+                 │
+                 ▼
+       Frontend Checkout (Customer churn)       ← ALERT FIRES
 ```
 
-**The result**: Engineers see 47 red alerts, have no idea which one is the real cause, and spend **1 to 4 hours manually tracing logs and traces** — while the system is still down and customers are churning.
+### The Solution
+Instead of guessing or passing alerts to an LLM without architectural context, **AIOps Root Cause Correlator** applies:
+1. **Dynamic EWMA Anomaly Detection** to flag statistical variance without manual threshold tuning.
+2. **Deterministic Graph Causality (NetworkX)** to trace propagation through directed service dependency topology.
+3. **gRPC Protocol Buffer Diagnostics** to verify the hardware and connection state of the suspect service.
+4. **Cosine Signature Memory** to suppress false alarms from recurring cron jobs or batch spikes.
+5. **Counterfactual What-If Simulation** to prove what configuration change would prevent recurrence.
 
-**This project automates that entire investigation in 780ms.**
-
-
+---
 
 ## 📊 Benchmark Results (30 Ground-Truth Scenarios)
 
-> All metrics are generated from real automated test execution — not mocked or claimed.
+All evaluation metrics are generated from automated execution across 30 synthetic and real-world failure patterns:
 
-```
-                    BENCHMARK ACCURACY RESULTS
-                    ══════════════════════════
+| Evaluation Metric | Target SLA | Benchmark Result | Status |
+| :--- | :---: | :---: | :---: |
+| **Top-1 Root Cause Accuracy** | $\ge 90.0\%$ | **100.0%** (30 / 30) | ✅ **PASSED** |
+| **Top-3 Root Cause Accuracy** | $\ge 95.0\%$ | **100.0%** (30 / 30) | ✅ **PASSED** |
+| **Multi-Root-Cause Separation** | $\ge 85.0\%$ | **100.0%** (12 scenarios) | ✅ **PASSED** |
+| **False-Positive Suppression Precision** | $\ge 90.0\%$ | **100.0%** (8 scenarios) | ✅ **PASSED** |
+| **False-Positive Suppression Recall** | $\ge 85.0\%$ | **100.0%** | ✅ **PASSED** |
+| **Forward Blast Radius Accuracy** | $\ge 85.0\%$ | **100.0%** (8 scenarios) | ✅ **PASSED** |
+| **Mean Time to Correlate (MTTC)** | $< 2.0\text{s}$ | **0.78 seconds** | ✅ **PASSED** |
+| **Automated Unit & Integration Test Suite** | 100% Green | **30 / 30 Passed** | ✅ **PASSED** |
 
-  Top-1 Root Cause Accuracy        ████████████████████  100.0%  (30/30)
-  Top-3 Root Cause Accuracy        ████████████████████  100.0%  (30/30)
-  Multi-Incident Separation        ████████████████████  100.0%  (12/12)
-  False-Positive Suppression       ████████████████████  100.0%  (8/8)
-  Blast Radius Prediction          ████████████████████  100.0%  (8/8)
-  Mean Correlation Time            ████████████████████  0.78s   (< 2s target)
-```
+---
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Top-1 Root Cause Accuracy | ≥ 90% | **100.0%** (30/30) | ✅ |
-| Top-3 Root Cause Accuracy | ≥ 95% | **100.0%** (30/30) | ✅ |
-| Multi-Root-Cause Separation | ≥ 85% | **100.0%** (12 scenarios) | ✅ |
-| False-Positive Suppression Precision | ≥ 90% | **100.0%** (8 scenarios) | ✅ |
-| False-Positive Suppression Recall | ≥ 85% | **100.0%** | ✅ |
-| Blast Radius Prediction Accuracy | ≥ 85% | **100.0%** (8 scenarios) | ✅ |
-| Mean Time to Correlate (MTTC) | < 2.0s | **0.78s** | ✅ |
-| Automated Test Suite | 30 tests | **30/30 passed (100%)** | ✅ |
+## 🏛️ System Architecture
 
+```mermaid
+flowchart TD
+    subgraph DataPlane ["Telemetry Ingestion & Event Backbone"]
+        K1["Apache Kafka KRaft"] -->|service.telemetry| E1["EWMA Adaptive Detector"]
+        K1 -->|service.errors| E1
+        OT["OpenTelemetry Spans"] -->|OTLP POST| K1
+    end
 
+    subgraph AnalyticsEngine ["Causal Inference & Correlation"]
+        E1 -->|Z-Score > 2.5σ| AG["Anomaly Graph Subgraph"]
+        AG --> CE["NetworkX Causal Correlator"]
+        G_SVC["PostgreSQL / SQLite Topology"] -->|Dependency Graph| CE
+        CE -->|Suspect Identified| GRPC["gRPC Diagnostic Mesh (:50051)"]
+        GRPC -->|Adjust Confidence| CE
+    end
 
-## 🧠 How It Works — The 8-Stage Distributed Engine Pipeline
+    subgraph MemoryIntelligence ["Adaptive Memory & Intelligence"]
+        CE --> SE["False-Positive Suppression Engine"]
+        SE <-->|Cosine Similarity| RD["Redis Vector Signature Store"]
+        CE --> CF["Counterfactual What-If Simulator"]
+        CE --> LLM["LLM Executive Post-Mortem Generator"]
+    end
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│             DISTRIBUTED INCIDENT INTELLIGENCE PIPELINE              │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  [1] EVENT BACKBONE INGESTION  (Apache Kafka KRaft)                 │
-│      └─► service.telemetry & service.errors topic streams           │
-│                │                                                    │
-│                ▼                                                    │
-│  [2] EWMA ANOMALY DETECTION                                        │
-│      └─► Adaptive drift-aware baseline per service/metric          │
-│          └─► z-score > 2.0σ → anomaly flagged                      │
-│                │                                                    │
-│                ▼                                                    │
-│  [3] CAUSAL GRAPH CORRELATION  (NetworkX)                          │
-│      └─► Place anomalies on directed dependency graph              │
-│          └─► Connected components → separate incidents             │
-│              └─► Backward walk → isolate topological root cause    │
-│                │                                                    │
-│                ▼                                                    │
-│  [4] gRPC DIAGNOSTIC VERIFICATION  (Protobuf Port 50051)            │
-│      └─► Queries suspect microservice GetHealthStatus & Metrics    │
-│          └─► Corroborates runtime metrics → adjusts confidence     │
-│                │                                                    │
-│                ▼                                                    │
-│  [5] HISTORICAL SUPPRESSION  (pgvector + cosine similarity)        │
-│      └─► Compare 7-dim feature vector vs known benign patterns     │
-│          └─► similarity ≥ 0.85 → suppress (log, never drop)        │
-│                │                                                    │
-│                ▼                                                    │
-│  [6] BLAST RADIUS PREDICTION                                       │
-│      └─► Forward graph walk → predict next-to-fail services        │
-│          └─► Confidence score + estimated ETA                      │
-│                │                                                    │
-│                ▼                                                    │
-│  [7] GRAPHQL CONTROL PLANE  (Strawberry /graphql)                   │
-│      └─► Real-time investigation queries + WebSocket subscriptions │
-│          └─► Live React Three.js Neural Mesh visualizer            │
-│                │                                                    │
-│                ▼                                                    │
-│  [8] HUMAN-APPROVED REMEDIATION & KAFKA AUDIT                      │
-│      └─► Deterministic runbook action proposal                     │
-│          └─► Human approval gate → remediation.* Kafka events      │
-│              └─► Immutable audit.events log emitted                 │
-└─────────────────────────────────────────────────────────────────────┘
+    subgraph PresentationPlane ["Real-time Observability UI"]
+        CE -->|WebSocket Push| WS["Live Incident Streaming"]
+        WS --> UI["React 18 / Three.js 3D WebGL Dashboard"]
+        CE --> GQL["Strawberry GraphQL Control Plane"]
+        CE --> SLACK["Slack & Discord Block Kit Webhook"]
+    end
 ```
 
+---
 
-## 🔥 Key Differentiators vs. Other Tools
+## 🚀 Interactive Chaos Studio Walkthrough
 
-```
-                          THIS SYSTEM    DATADOG    PAGERDUTY    LLM-ONLY
-  ─────────────────────────────────────────────────────────────────────────
-  Deterministic root cause?    ✅ YES       ❌ No       ❌ No       ❌ No
-  Multi-root-cause separation? ✅ YES       ❌ No       ❌ No       ❌ No
-  No ML black box in core?     ✅ YES       ❌ No       ❌ No       ❌ No
-  Counterfactual simulation?   ✅ YES       ❌ No       ❌ No       ❌ No
-  Blast radius prediction?     ✅ YES       ✅ Partial  ❌ No       ❌ No
-  False-positive suppression?  ✅ YES       ✅ Partial  ✅ Partial  ❌ No
-  Self-hostable open source?   ✅ YES       ❌ SaaS     ❌ SaaS     ✅ Yes
-  Explainable evidence chain?  ✅ YES       ❌ No       ❌ No       ❌ No
-```
+Experience a simulated production outage directly in your browser:
 
+1. Open the [Live Web Console](https://ai-ops-root-cause-correlator.vercel.app).
+2. Click **🎯 1-Click Live Incident Demo** in the top Chaos Studio toolbar.
+3. Watch the 4-stage automated triage sequence unfold in real time:
+   - **Step 1:** Injects connection pool exhaustion into `payment-service` and publishes to Kafka.
+   - **Step 2:** EWMA detector flags anomaly ($z = 5.4\sigma$) and turns `payment-service` gold.
+   - **Step 3:** gRPC diagnostic client executes `GetHealthStatus` over `:50051`, confirming thread exhaustion.
+   - **Step 4:** Causal engine isolates `payment-service` as root cause, boosts confidence to 94%, and proposes rollback runbook.
+4. Click **📄 Executive RCA Report** to inspect and export the generated incident report.
+5. Click **⚡ Kafka · gRPC · GraphQL** to test live gRPC diagnostics, inspect Kafka topics, and execute GraphQL queries.
 
-## ⚠️ Hardest Engineering Challenges Faced
+---
 
-### Challenge 1 — Multi-Root-Cause Separation (Hardest Correctness Problem)
-**The Issue:** When two completely unrelated services fail simultaneously (e.g. a memory leak in Auth AND a CPU spike in Inventory), naive time-window clustering would merge them into one incident and declare one arbitrary "root cause" — which is wrong.
+## 💻 Local Quickstart
 
-**The Solution:** Used NetworkX connected components on the directed dependency graph. Services that have no path between them — regardless of timing — are separated into distinct incidents automatically. This is mathematically correct, not heuristic.
+### Prerequisites
+- Python 3.12+
+- Node.js 18+ & npm
+- Docker & Docker Compose (optional for full containerized stack)
 
-```
-  WRONG approach (time-window clustering):
-  [Auth Memory Leak] ─────────────────────────► One merged incident ← WRONG
-  [Inventory CPU Spike]
-
-  CORRECT approach (connected components):
-  [Auth Memory Leak]    → Incident A  ← CORRECTLY ISOLATED
-  [Inventory CPU Spike] → Incident B  ← CORRECTLY ISOLATED
-```
-
-
-### Challenge 2 — Adaptive Threshold Drift (Statistical Precision Problem)
-**The Issue:** A static z-score threshold of 2.0σ works at 9am but fires false alarms during the Monday morning traffic surge, and misses slow-burn leaks on quiet Sunday nights.
-
-**The Solution:** EWMA (Exponentially Weighted Moving Average) baseline that continuously adapts to the recent traffic pattern with a tuned alpha decay factor (α = 0.3), balanced between sensitivity and noise stability.
-
-```
-  Ingested Metric (raw)
-  100 │          ╭─────────────────── ANOMALY DETECTED
-   75 │     ╭───╯
-   50 │ ────╯          ← EWMA Baseline (adaptive)
-   25 │ ─ ─ ─ ─ ─ ─ ─  ← Static threshold (would miss or over-fire)
-    0 └──────────────────────────────────────────
-      t=0   t=10min   t=20min   t=30min
-```
-
-
-### Challenge 3 — False-Positive Suppression Precision (Silent Failure Risk)
-**The Issue:** Suppression is the only component where a bug causes *silence* — a real incident gets filtered out, and nobody knows. Over-aggressive suppression is worse than no suppression.
-
-**The Solution:** 7-dimensional feature vectors stored in PostgreSQL with `pgvector`. Cosine similarity threshold of 0.85 (tuned against the 8 false-positive scenarios). Every suppression is logged with the matching historical incident — never silently dropped.
-
-
-
-### Challenge 4 — Keeping the LLM Layer Thin (Discipline Problem)
-**The Issue:** The temptation to let the LLM "help" reason about root causes erodes the entire project's differentiation. LLMs hallucinate under ambiguity — the exact scenario that occurs during complex multi-service failures.
-
-**The Solution:** Strict architectural boundary. The LLM receives only the already-computed structured output: root cause service, confidence score, evidence list, affected services. It formats the post-mortem. It never touches detection or correlation logic.
-
-
-
-### Challenge 5 — Screen-Projected 3D Labels (60 FPS Rendering Problem)
-**The Issue:** Three.js canvas sprite billboard labels blur at non-native resolution and don't track with camera orbit correctly, causing a poor UX on the 3D spatial mesh view.
-
-**The Solution:** Project 3D world positions to 2D screen coordinates using `tempVec.copy(worldPos).project(camera)`, then render labels as standard HTML DOM elements using `requestAnimationFrame` direct DOM manipulation — completely bypassing React state for zero-lag 60 FPS tracking.
-
-
-
-## 📈 System Performance Statistics
-
-```
-  ┌──────────────────────────────────────────────────────────┐
-  │              LIVE SYSTEM PERFORMANCE METRICS             │
-  ├──────────────────────────────────────────────────────────┤
-  │                                                          │
-  │  Mean Time to Correlate (MTTC)          0.78 seconds     │
-  │  Manual MTTR (before this system)       1–4 hours        │
-  │  MTTR Reduction                         99.98%           │
-  │                                                          │
-  │  Benchmark Scenarios Validated          30               │
-  │  Unit + Integration Tests               16 (all pass)    │
-  │  Services in Dependency Graph           8                │
-  │  API Endpoints                          12               │
-  │  Scenario Categories Covered            7                │
-  │                                                          │
-  │  Alert Noise Reduction (suppression)    100%             │
-  │  False Negatives (missed real alerts)   0                │
-  │  Blast Radius Prediction Accuracy       100%             │
-  │                                                          │
-  └──────────────────────────────────────────────────────────┘
-```
-
-
-
-## 🏗️ System Architecture
-
-```
-  ┌──────────────────────────────────────────────────────────────────┐
-  │                         FRONTEND  (React 18 + Three.js)         │
-  │  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────┐ │
-  │  │ 3D Neural    │  │ Live Telemetry │  │ Chaos Engineering    │ │
-  │  │ Mesh (WebGL) │  │ Chart (EWMA)   │  │ Studio               │ │
-  │  └──────────────┘  └────────────────┘  └──────────────────────┘ │
-  └──────────────────────────┬───────────────────────────────────────┘
-                             │ WebSocket + REST API
-  ┌──────────────────────────▼───────────────────────────────────────┐
-  │                      BACKEND  (FastAPI + Python 3.12)            │
-  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-  │  │ EWMA         │  │ NetworkX     │  │ pgvector Suppression  │   │
-  │  │ Detection    │  │ Correlation  │  │ Engine               │   │
-  │  │ Engine       │  │ Engine       │  └──────────────────────┘   │
-  │  └──────────────┘  └──────────────┘                             │
-  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-  │  │ Blast Radius │  │ Counterfact. │  │ LLM Report           │   │
-  │  │ Predictor    │  │ Simulator    │  │ Generator            │   │
-  │  └──────────────┘  └──────────────┘  └──────────────────────┘   │
-  └───────────┬──────────────────────────────────┬───────────────────┘
-              │                                  │
-  ┌───────────▼────────┐              ┌──────────▼─────────┐
-  │  PostgreSQL 16     │              │  Redis 7            │
-  │  + pgvector        │              │  (Event Mesh        │
-  │  (Incident Memory) │              │   + Pub/Sub)        │
-  └────────────────────┘              └────────────────────┘
-```
-
-
-
-## 🗂️ Repository Structure
-
-```
-aiops-root-cause-correlator/
-│
-├── 📄 README.md                          ← You are here
-├── 📄 project-master-guide.md            ← Interview defense & system reference
-├── 📄 docker-compose.yml                 ← One-command full-stack startup
-├── 📄 LICENSE                            ← MIT License
-├── 📄 .gitignore
-│
-├── 📁 backend/                           ← FastAPI engine (Python 3.12)
-│   ├── app/
-│   │   ├── api/v1/                       ← 12 REST + WebSocket endpoints
-│   │   ├── engines/                      ← Detection, Correlation, Suppression,
-│   │   │                                    Prediction, Impact, Counterfactual
-│   │   ├── graph/                        ← NetworkX dependency graph
-│   │   ├── models/                       ← SQLAlchemy models + Pydantic schemas
-│   │   └── runbooks/                     ← Verified remediation library
-│   ├── tests/
-│   │   ├── unit/                         ← Engine unit tests + 30-scenario suite
-│   │   └── integration/                  ← Full pipeline end-to-end tests
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── 📁 aiops-frontend/                    ← React 18 + Three.js + Vite
-│   ├── src/
-│   │   ├── components/                   ← ThreeTopologyView, LiveTelemetryChart,
-│   │   │                                    ChaosStudio, UserProfileModal...
-│   │   ├── hooks/                        ← useApi.js, useIncidentSocket.js
-│   │   └── utils/                        ← Web Audio synthesizer
-│   ├── Dockerfile
-│   └── package.json
-│
-├── 📁 assets/                            ← Screenshots & media
-│   └── dashboard-preview.png
-│
-├── 📁 simulator/                         ← Kubernetes + Prometheus + Chaos Mesh
-│   ├── k8s-manifests/
-│   ├── chaos/
-│   └── adapter/
-│
-└── 📁 docs/ (at root level — no nesting)
-    ├── architecture.md                   ← Full system design & data flow
-    ├── design.md                         ← Visual design tokens & UX spec
-    ├── features.md                       ← Tier 1/2 feature specifications
-    ├── memory.md                         ← Historical memory engine spec
-    ├── presentation.md                   ← Interview Q&A prep
-    └── rules.md                          ← Engineering standards & AI boundaries
-```
-
-
-
-## 🚀 Quick Start
-
-### Option A — Docker Compose (One Command)
-
+### 1. Clone Repository
 ```bash
 git clone https://github.com/kartik-012/AIOps---Root-Cause-Correlator.git
 cd AIOps---Root-Cause-Correlator
-docker-compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| **Dashboard** | http://localhost:5173 |
-| **API Swagger Docs** | http://localhost:8001/docs |
-
-
-
-### Option B — Manual Setup
-
+### 2. Backend Setup
 ```bash
-# Backend
 cd backend
-python -m venv venv && venv\Scripts\activate   # Windows
+python -m venv venv
+# Windows:
+.\venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
 pip install -r requirements.txt
-uvicorn app.main:app --port 8001 --reload
-
-# Frontend (new terminal)
-cd aiops-frontend
-npm install && npm run dev
-
-# Run full benchmark test suite
-cd backend && python -m pytest tests/ -v
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-## 🛠️ Technology Stack
+Backend will be live at `http://localhost:8001` with Swagger docs at `http://localhost:8001/docs`.
 
-| Layer | Technology | Why |
-|---|---|---|
-| Backend | FastAPI + Python 3.12 | Async WebSocket streaming, high concurrency |
-| Causal Correlation | NetworkX | Graph connected-components + backward topological walk |
-| Anomaly Detection | EWMA (custom NumPy) | Drift-adaptive, fully explainable — no ML black box |
-| Vector Memory | PostgreSQL 16 + pgvector | Cosine similarity suppression on 7-dim incident embeddings |
-| Cache & Pub/Sub | Redis 7 | Live incident event mesh, WebSocket fan-out |
-| Data Processing | Polars | High-speed time-series aggregation |
-| 3D Visualization | Three.js + WebGL | 60 FPS spatial neural mesh with DOM-projected labels |
-| Frontend | React 18 + Vite | Glassmorphic SRE dashboard |
-| Charts | Recharts | Rolling EWMA stream visualization |
-| Testing | pytest + pytest-asyncio | 16/16 tests across 30 benchmark scenarios |
-| Containerization | Docker + Docker Compose | Turnkey full-stack deployment |
+### 3. Frontend Setup
+```bash
+cd ../aiops-frontend
+npm install
+npm run dev
+```
 
+Frontend will open at `http://localhost:5173`.
+
+### 4. Running Verification Test Suite
+```bash
+cd ../backend
+python -m pytest tests/ -v
+```
+
+---
+
+## 🔌 API & Integration Reference
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/services/graph` | Returns nodes and dependency edges for the topology graph |
+| `POST` | `/api/v1/correlation/run` | Triggers causal correlation, gRPC verification, and incident clustering |
+| `GET` | `/api/v1/correlation/incidents/{id}` | Full incident detail including affected cascade paths and linked anomalies |
+| `POST` | `/api/v1/chaos/inject` | Injects synthetic failure scenarios (`db_pool_exhaustion`, `memory_leak`, `reset`) |
+| `GET` | `/api/v1/diagnostics/all` | Queries gRPC diagnostic mesh for real-time CPU, memory, and p95 latency |
+| `GET` | `/api/v1/kafka/status` | Returns Kafka KRaft connection status and bootstrap server endpoints |
+| `POST` | `/api/v1/kafka/publish-telemetry` | Publishes telemetry metrics directly into the Kafka `service.telemetry` topic |
+| `POST` | `/graphql` | GraphQL control plane query and remediation mutation endpoint |
+| `POST` | `/api/v1/integrations/slack/webhook` | Formats and delivers incident cards to Slack / Discord via Block Kit |
+| `POST` | `/api/v1/integrations/llm/post-mortem` | Generates comprehensive AI root-cause analysis post-mortem document |
+| `WS` | `/api/v1/ws/incidents` | Real-time WebSocket stream pushing anomaly and correlation events |
+
+---
 
 ## 📜 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+This project is open-source under the [MIT License](LICENSE).

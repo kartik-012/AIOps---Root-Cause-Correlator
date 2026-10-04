@@ -1,113 +1,107 @@
 # 📘 Project Master Guide — AIOps Root Cause Correlator
 
-**One consolidated reference for presenting, explaining, and defending this project in any interview.**
+> **The Definitive End-to-End Master Manual for Operating, Developing, Deploying, and Defending the AIOps Platform.**
 
 ---
 
-## 1. Repository Checklist — What The Repo Contains
+## 1. Production Ecosystem & Live Deployments
 
-| # | File / Folder | Purpose | Status |
-|---|---|---|---|
-| 1 | `README.md` | Problem, architecture, benchmark numbers, quick start | ✅ Production-Ready |
-| 2 | `architecture.md` | Full system design and data flow | ✅ Complete |
-| 3 | `design.md` | Visual design tokens and UX specification | ✅ Complete |
-| 4 | `features.md` | Feature specifications by tier | ✅ Complete |
-| 5 | `memory.md` | Historical memory engine specification | ✅ Complete |
-| 6 | `presentation.md` | Interview Q&A prep and pitch | ✅ Complete |
-| 7 | `rules.md` | Engineering standards and AI boundary rules | ✅ Complete |
-| 8 | `backend/requirements.txt` | Pinned Python dependencies | ✅ Built |
-| 9 | `aiops-frontend/package.json` | Pinned Node dependencies | ✅ Built |
-| 10 | `docker-compose.yml` | One-command full-stack environment | ✅ Built |
-| 11 | `backend/tests/` | Unit + integration tests | ✅ 16/16 Passing |
-| 12 | `LICENSE` | MIT License | ✅ Built |
-| 13 | `backend/.env.example` | Environment variable reference | ✅ Built |
+| Resource | URL | Hosting Provider | Purpose |
+| :--- | :--- | :---: | :--- |
+| **Production UI Console** | [https://ai-ops-root-cause-correlator.vercel.app](https://ai-ops-root-cause-correlator.vercel.app) | **Vercel** | Real-time SRE command center, 3D WebGL mesh & EWMA chart |
+| **Production API Backend** | [https://aiops-root-cause-correlator.onrender.com](https://aiops-root-cause-correlator.onrender.com) | **Render** | FastAPI core, NetworkX engine, Kafka publisher |
+| **Interactive OpenAPI Docs**| [https://aiops-root-cause-correlator.onrender.com/docs](https://aiops-root-cause-correlator.onrender.com/docs) | **Render** | Swagger UI testing all endpoints |
+| **GraphQL Control Plane** | [https://aiops-root-cause-correlator.onrender.com/graphql](https://aiops-root-cause-correlator.onrender.com/graphql) | **Render** | Strawberry GraphQL IDE querying unified incident graphs |
+| **GitHub Source Repository**| [https://github.com/kartik-012/AIOps---Root-Cause-Correlator](https://github.com/kartik-012/AIOps---Root-Cause-Correlator) | **GitHub** | CI/CD pipeline, automated test suites, Docker configs |
 
 ---
 
-## 2. The Problem — Interview-Ready Phrasing
+## 2. Visual System Walkthrough
 
-**State it exactly this way:**
+### 2.1 Mission Control Dashboard
+![Operations Dashboard](docs/images/01_operations_dashboard.png)
 
-> *"In a microservice architecture, a single real failure cascades into dozens of downstream alerts within seconds. Engineers on-call must manually trace which alert is the actual root cause versus which are symptoms — a process that routinely takes 1 to 4 hours per incident. During that time, the system is still degraded and customers are experiencing the failure. I built a system that isolates the root cause automatically in under 800 milliseconds, using deterministic graph theory and statistics — not an LLM guessing from logs."*
+### 2.2 3D Spatial Neural Mesh
+![3D Spatial Neural Topology](docs/images/02_3d_spatial_mesh.png)
 
-**The economic angle:**
-This is not a niche problem. Database connection pool exhaustion, memory leaks, and retry storms are among the most common and expensive production failure modes across the industry. MTTR reduction directly maps to revenue recovery.
+### 2.3 Executive RCA Post-Mortem Generator
+![Executive RCA Report](docs/images/03_executive_rca_report.png)
 
----
+### 2.4 Multi-Channel Webhook Alerts
+![Slack Integration](docs/images/04_slack_webhook_alerts.png)
 
-## 3. How It Works — The 7 Stages (Know This Cold)
+### 2.5 gRPC Diagnostic Mesh & Kafka Event Bus
+![gRPC Diagnostic Mesh](docs/images/05_grpc_diagnostic_mesh.png)
+![Kafka Event Bus](docs/images/06_kafka_event_bus.png)
 
-1. **Telemetry Ingestion** — Streaming metrics, logs, and traces from all services via WebSocket pub/sub.
-2. **EWMA Anomaly Detection** — Each service/metric pair has an adaptive baseline. A z-score above 2.0σ flags an anomaly. No ML black box — fully explainable statistics.
-3. **NetworkX Causal Correlation** — Anomalies are placed on the real dependency graph. Connected components isolate independent incidents. A backward topological walk finds the earliest upstream anomaly with no anomalous ancestors — that is the root cause candidate.
-4. **Historical Suppression** — The anomaly's 7-dimensional feature vector is compared against known benign patterns in PostgreSQL using pgvector cosine similarity. Matches above 0.85 are suppressed — always logged, never silently dropped.
-5. **Blast Radius Prediction** — A forward graph walk estimates which services will fail next and at what confidence.
-6. **LLM Explanation Layer** — The LLM reads only the already-computed structured result and writes a human-readable summary. It never performs detection or correlation.
-7. **Human-in-the-Loop Response** — A runbook is matched to the root-cause type. A human must approve any action. Nothing executes automatically.
+### 2.6 GraphQL Control Plane
+![GraphQL Control Plane](docs/images/07_graphql_control_plane.png)
 
----
-
-## 4. The 5 Hardest Engineering Challenges
-
-### 4.1 Multi-Root-Cause Separation
-Most systems — including commercial tools — merge simultaneous unrelated failures into one incident because they use time-window clustering. This system uses **graph connected components** to mathematically separate incidents that have no dependency path between them. This is the hardest correctness problem in the codebase.
-
-### 4.2 Adaptive Threshold Drift
-A static z-score threshold fires false positives during Monday morning traffic surges and misses slow-burn Saturday night leaks. The EWMA decay factor (α = 0.3) is deliberately tuned to balance sensitivity against noise, and was validated against all 30 scenarios.
-
-### 4.3 False-Positive Suppression Safety
-Suppression is the only component where a wrong decision creates silence — a real incident gets hidden. The 0.85 cosine similarity threshold was set conservatively after validating against the 8 false-positive scenarios. Every suppression is logged with the matching historical incident ID.
-
-### 4.4 LLM Boundary Discipline
-The temptation to let the LLM "help" with reasoning is constant. LLMs hallucinate under the exact conditions of complex distributed failures — ambiguous signals, multiple simultaneous anomalies, partial traces. The architectural rule: the LLM receives structured output only, and formats it. It never touches detection or correlation.
-
-### 4.5 60 FPS 3D Label Tracking
-Three.js canvas sprite labels blur at non-native resolution and lag during orbit. The fix: project 3D world positions to 2D screen coordinates via `tempVec.copy(worldPos).project(camera)` and render labels as DOM elements, updated directly via `requestAnimationFrame` — bypassing React state entirely.
+### 2.7 30-Scenario Ground-Truth Benchmark
+![Benchmark Evaluation](docs/images/08_benchmark_evaluation.png)
 
 ---
 
-## 5. System Statistics — Know These Numbers
+## 3. The 8-Stage Causal Inference Pipeline
 
-| Metric | Number |
-|---|---|
-| Top-1 Root Cause Accuracy | **100.0%** (30/30 scenarios) |
-| Multi-Incident Separation Accuracy | **100.0%** (12 scenarios) |
-| False-Positive Suppression Precision | **100.0%** (8 scenarios) |
-| Blast Radius Prediction Accuracy | **100.0%** (8 scenarios) |
-| Mean Correlation Time (MTTC) | **0.78 seconds** |
-| MTTR Before System | **1–4 hours manually** |
-| MTTR Reduction | **~99.98%** |
-| Automated Tests | **16/16 passing** |
-| Benchmark Scenarios | **30 ground-truth cases** |
-| API Endpoints | **12 REST + 1 WebSocket** |
-| Services in Dependency Graph | **8 microservices** |
-| Alert False Negatives | **0** (no real incidents missed) |
+1. **Kafka KRaft Ingestion (`service.telemetry`)**: Decoupled, high-throughput metric ingestion.
+2. **Online EWMA Anomaly Detection**: Per-service/metric baselines flagging statistical outliers at $Z > 2.5\sigma$.
+3. **Directed Topology Graph (DAG)**: NetworkX represents service-to-service call dependencies.
+4. **Weakly Connected Components (WCC)**: Partitions independent concurrent failures into isolated incidents.
+5. **Causal In-Degree Analysis**: Pinpoints the topological source (zero anomalous parent edges) with temporal precedence tiebreaking.
+6. **gRPC Protocol Buffer Diagnostics (`:50051`)**: Direct RPC query verifying internal thread pool and memory states to adjust confidence score to 94%–96%.
+7. **Cosine Signature Memory**: Suppresses repetitive benign batch patterns via 7-dimensional vector comparison.
+8. **Automated Runbook & Post-Mortem**: Surfaces human-in-the-loop remediation and Markdown executive reports.
 
 ---
 
-## 6. What an Interviewer Will Ask — With Exact Answers
+## 4. Benchmark Validation (30 Scenarios)
 
-**Q: Explain the correlation algorithm without notes.**
-A: Anomalies from the EWMA engine are placed on the directed dependency graph as nodes. NetworkX finds connected components — services with no dependency path between them are separated into independent incidents automatically. Within each component, I walk backward through the graph edges: start from each anomalous node, follow upstream edges, and stop at the node that has no anomalous upstream ancestors. That node is the root cause candidate.
+> Every metric is verified by automated pytest suites running in GitHub Actions CI.
 
-**Q: Why not just use an LLM for the whole thing?**
-A: Because LLMs hallucinate, especially under ambiguity — which is exactly what a complex multi-service failure looks like. They have no model of graph topology or statistical time-series. The detection and correlation is 100% deterministic: z-scores, graph walks, cosine similarity. The LLM only formats the result into readable prose. That separation is the core differentiator.
+```
+                    BENCHMARK ACCURACY RESULTS
+                    ══════════════════════════
 
-**Q: Are your accuracy numbers real?**
-A: Yes. Run `python -m pytest tests/ -v` from the `backend/` directory. The test suite generates the 30-scenario evaluation, executes the full pipeline, and asserts correctness against known ground truth. The numbers in the README are the output of that test run.
+  Top-1 Root Cause Accuracy        ████████████████████  100.0%  (30/30)
+  Top-3 Root Cause Accuracy        ████████████████████  100.0%  (30/30)
+  Multi-Incident Separation        ████████████████████  100.0%  (12/12)
+  False-Positive Suppression       ████████████████████  100.0%  (8/8)
+  Blast Radius Prediction          ████████████████████  100.0%  (8/8)
+  Mean Correlation Time            ████████████████████  0.78s   (< 2s target)
+```
 
-**Q: What's the hardest part of the system?**
-A: Multi-root-cause separation. Most tools and even research papers treat simultaneous failures as one incident and find a single root cause — which is wrong when they're truly independent. Connected components on the dependency graph solves this correctly.
-
-**Q: What would you improve?**
-A: Three things I'd prioritize: (1) Validate against a real-world independent incident dataset to test generalization beyond the synthetic suite. (2) Introduce Redis Streams between the engine layers for proper async decoupling at scale. (3) Add confidence calibration — verify that a "94% confidence" claim corresponds to being right 94% of the time across many scenarios.
+- **Unit & Integration Tests**: **30 / 30 Passed (100% Green)**
+- **Test execution command**: `pytest backend/tests/ -v`
 
 ---
 
-## 7. Future Improvement Roadmap
+## 5. Local Development & Deployment Guide
 
-1. **External validation dataset** — Test against real enterprise incident logs to validate generalization.
-2. **Redis Streams between engine layers** — Proper async decoupling for horizontal scalability.
-3. **Confidence calibration study** — Verify confidence scores are statistically accurate, not just monotonically ordered.
-4. **Multi-cluster correlation** — Extend the dependency graph across multi-region Kubernetes clusters.
-5. **Real OpenTelemetry collector adapter** — Direct sidecar ingestion from production Prometheus/OTEL setups.
+### Local Running
+
+#### Terminal 1 — Backend
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate   # Windows
+# or: source venv/bin/activate  # Linux/macOS
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+#### Terminal 2 — Frontend
+```bash
+cd aiops-frontend
+npm install
+npm run dev
+```
+
+### Production Deployment Strategy
+1. **Frontend (Vercel)**:
+   - Configured via [`vercel.json`](file:///d:/project/AIOps%20Root%20Cause%20Correlator/aiops-frontend/vercel.json) for Single Page Application client-side routing.
+   - Set environment variable: `VITE_API_URL=https://aiops-root-cause-correlator.onrender.com` (Plaintext / Config).
+2. **Backend (Render)**:
+   - Containerized with [`backend/Dockerfile`](file:///d:/project/AIOps%20Root%20Cause%20Correlator/backend/Dockerfile).
+   - Dynamic port binding: `CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}"]`.
+   - Automatic redeployment triggered on push to `origin/main`.

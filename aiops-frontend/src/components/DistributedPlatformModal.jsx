@@ -154,7 +154,7 @@ export function DistributedPlatformModal({ isOpen, onClose }) {
                 <p style={{ margin: 0, color: 'var(--text-secondary, #94a3b8)', fontSize: '0.88rem' }}>
                   During RCA, the correlation engine invokes <code>GetHealthStatus</code> via gRPC against suspect microservices to verify diagnostic state and boost confidence.
                 </p>
-                <button className="ghost" onClick={fetchDiagnostics} style={{ fontSize: '0.78rem' }}>
+                <button className="dist-btn-ghost" onClick={fetchDiagnostics} style={{ fontSize: '0.78rem' }}>
                   ↻ Refresh gRPC
                 </button>
               </div>
@@ -248,9 +248,9 @@ export function DistributedPlatformModal({ isOpen, onClose }) {
                   </p>
                 </div>
                 <button
-                  className="primary"
+                  className="dist-btn-primary"
                   onClick={handlePublishKafkaTest}
-                  style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', padding: '8px 16px' }}
+                  style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', padding: '8px 18px' }}
                 >
                   🚀 Publish to Kafka
                 </button>
@@ -273,10 +273,10 @@ export function DistributedPlatformModal({ isOpen, onClose }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <b style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>Investigation Query</b>
                     <button
-                      className="primary"
+                      className="dist-btn-primary"
                       onClick={handleRunGraphQL}
                       disabled={loading}
-                      style={{ fontSize: '0.75rem', padding: '4px 12px' }}
+                      style={{ fontSize: '0.78rem', padding: '6px 14px' }}
                     >
                       {loading ? 'Executing...' : '▶ Run Query'}
                     </button>

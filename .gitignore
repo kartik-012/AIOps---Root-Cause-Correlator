@@ -58,3 +58,9 @@ Thumbs.db
 # Archives
 *.zip
 *.tar.gz
+
+# Local Study Documents (Not in GitHub)
+*.docx
+*.html
+docs/INTERNSHIP_STUDY_GUIDE_TASKS_2_TO_15.md
+AIOps_Internship_Study_Guide_Tasks_2_to_15.*

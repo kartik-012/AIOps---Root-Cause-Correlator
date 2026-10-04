@@ -148,6 +148,19 @@ graphql_app = GraphQLRouter(graphql_schema, subscription_protocols=["graphql-tra
 app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL Control Plane"])
 
 
+@app.get("/", tags=["Health"])
+def root():
+    """Root welcoming endpoint with API links."""
+    return {
+        "service": settings.PROJECT_NAME,
+        "status": "online",
+        "version": settings.VERSION,
+        "docs": "/docs",
+        "graphql": "/graphql",
+        "health": "/health",
+    }
+
+
 @app.get("/health", tags=["Health"])
 def health_check():
     """Health check endpoint."""

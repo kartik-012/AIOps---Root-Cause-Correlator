@@ -109,16 +109,16 @@ export function DistributedPlatformModal({ isOpen, onClose }) {
   if (!isOpen) return null
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content distributed-modal" style={{ maxWidth: '920px', width: '90%' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content distributed-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <div className="badge-distributed">DISTRIBUTED INFRASTRUCTURE PLANE</div>
-            <h2 style={{ margin: '4px 0 0 0', fontSize: '1.25rem' }}>
+            <span className="eyebrow">DISTRIBUTED INFRASTRUCTURE PLANE</span>
+            <h2>
               Kafka Event Backbone, gRPC Diagnostic Mesh & GraphQL Gateway
             </h2>
           </div>
-          <button className="ghost" onClick={onClose} style={{ fontSize: '1.2rem', padding: '4px 10px' }}>
+          <button className="close-btn" onClick={onClose}>
             ✕
           </button>
         </div>

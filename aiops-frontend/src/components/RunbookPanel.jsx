@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { sound } from '../utils/audio'
 import { api } from '../hooks/useApi'
+import { AdminGovernanceModal } from './AdminGovernanceModal'
 
 export function RunbookPanel({ incidentDetail, onApprove }) {
   const [approved, setApproved] = useState(false)
+  const [govModalOpen, setGovModalOpen] = useState(false)
   const [canaryState, setCanaryState] = useState(null) // null | 'running' | 'completed'
   const [canaryPhaseText, setCanaryPhaseText] = useState('')
   const [canaryResult, setCanaryResult] = useState(null)
@@ -237,6 +239,29 @@ export function RunbookPanel({ incidentDetail, onApprove }) {
           </motion.button>
         )}
       </div>
+
+      <motion.button
+        whileHover={{ scale: 1.015, y: -1 }}
+        whileTap={{ scale: 0.985 }}
+        className="gov-open-dossier-btn"
+        onClick={() => {
+          sound.click()
+          setGovModalOpen(true)
+        }}
+      >
+        📱 Remote Admin Mobile Dossier & Break-Glass Governance →
+      </motion.button>
+
+      <AdminGovernanceModal
+        isOpen={govModalOpen}
+        onClose={() => setGovModalOpen(false)}
+        incidentDetail={incidentDetail}
+        onApproved={() => {
+          setApproved(true)
+          if (onApprove) onApprove()
+        }}
+      />
     </motion.div>
   )
 }
+

@@ -199,5 +199,54 @@ export const api = {
     if (!res.ok) throw new Error('100-node benchmark failed')
     return res.json()
   },
+
+  // Principal SRE Feature 6: Progressive Trust, Mobile Incident Dossier & Break-Glass Governance
+  async requestGovernanceDossier(incidentId = 'inc-default', targetService = 'payment-service', rootCauseType = 'db_pool_exhaustion') {
+    const params = new URLSearchParams({ target_service: targetService, root_cause_type: rootCauseType })
+    const res = await fetch(`${API_BASE}/runbook/${incidentId}/governance/request-dossier?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Request dossier failed')
+    return res.json()
+  },
+
+  async acknowledgeAndPauseTimer(sessionId, token) {
+    const params = new URLSearchParams({ token })
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}/acknowledge-investigate?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Acknowledge failed')
+    return res.json()
+  },
+
+  async runShadowDryRun(sessionId) {
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}/shadow-dry-run`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Shadow dry-run failed')
+    return res.json()
+  },
+
+  async approveViaMagicLink(sessionId, token) {
+    const params = new URLSearchParams({ token })
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}/approve-magic-link?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Magic-link approval failed')
+    return res.json()
+  },
+
+  async invokeBreakGlass(sessionId, justification = 'Admin on flight; checkout outage > $5k/min') {
+    const params = new URLSearchParams({ justification })
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}/break-glass?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Break-Glass blocked')
+    }
+    return res.json()
+  },
 }
+
 

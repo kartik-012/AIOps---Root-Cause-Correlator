@@ -18,9 +18,14 @@ import { ChaosStudio } from './components/ChaosStudio'
 import { useIncidentSocket } from './hooks/useIncidentSocket'
 import { api } from './hooks/useApi'
 import { DistributedPlatformModal } from './components/DistributedPlatformModal'
+import { MobileAdminStandaloneView } from './components/AdminGovernanceModal'
 import { sound } from './utils/audio'
 
 export default function App() {
+  const isMobileAdminMode =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('mode') === 'mobile-admin'
+
   const [incidents, setIncidents] = useState([])
   const [selectedIncidentId, setSelectedIncidentId] = useState(null)
   const [incidentDetail, setIncidentDetail] = useState(null)
@@ -67,6 +72,10 @@ export default function App() {
       sound.alert()
       notify(`⚡ New incident correlated! Root cause: ${event.root_cause_service}`)
       fetchIncidents()
+    } else if (event.type === 'governance_updated') {
+      sound.success()
+      const stateLabel = event.session?.state || 'UPDATED'
+      notify(`📱 Remote Admin Phone Action synced: ${stateLabel}`)
     } else if (event.type === 'topology_reset') {
       sound.success()
       notify('🛡️ Cluster returned to nominal state.')
@@ -208,6 +217,10 @@ export default function App() {
   }, [])
 
   const activeInc = incidents.find((i) => (i.id || i.incident_id) === selectedIncidentId) || incidents[0]
+
+  if (isMobileAdminMode) {
+    return <MobileAdminStandaloneView />
+  }
 
   return (
     <div className="app-shell">

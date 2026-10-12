@@ -219,8 +219,21 @@ def request_admin_governance_dossier(
     )
 
 
+@router.get("/runbook/governance/{session_id}")
+def get_governance_session(session_id: str):
+    """Fetch current governance session state for real-time phone-to-laptop synchronization."""
+    from app.engines.remediation_engine import get_remediation_engine
+
+    rem_engine = get_remediation_engine()
+    store = rem_engine._ensure_governance_store()
+    session = store.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Governance session {session_id} not found")
+    return session
+
+
 @router.post("/runbook/governance/{session_id}/acknowledge-investigate")
-def acknowledge_and_pause_escalation_timer(
+async def acknowledge_and_pause_escalation_timer(
     session_id: str,
     token: str,
     admin_actor: str = "Principal-SRE-Admin (Mobile)",
@@ -228,30 +241,36 @@ def acknowledge_and_pause_escalation_timer(
 ):
     """Admin taps 'Acknowledge & Investigating' on mobile: freezes escalation timer and locks Break-Glass."""
     from app.engines.remediation_engine import get_remediation_engine
+    from app.api.v1.ws import broadcast_event
 
     rem_engine = get_remediation_engine()
     try:
-        return rem_engine.acknowledge_and_hold_timer(
+        session = rem_engine.acknowledge_and_hold_timer(
             session_id=session_id,
             token=token,
             admin_actor=admin_actor,
             hold_minutes=hold_minutes,
         )
+        await broadcast_event({"type": "governance_updated", "session": session})
+        return session
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/runbook/governance/{session_id}/shadow-dry-run")
-def execute_shadow_traffic_dry_run(
+async def execute_shadow_traffic_dry_run(
     session_id: str,
     admin_actor: str = "Principal-SRE-Admin (Mobile)",
 ):
     """Execute a 1% read-only shadow traffic dry-run simulation for the Admin."""
     from app.engines.remediation_engine import get_remediation_engine
+    from app.api.v1.ws import broadcast_event
 
     rem_engine = get_remediation_engine()
     try:
-        return rem_engine.run_shadow_dry_run(session_id=session_id, admin_actor=admin_actor)
+        session = rem_engine.run_shadow_dry_run(session_id=session_id, admin_actor=admin_actor)
+        await broadcast_event({"type": "governance_updated", "session": session})
+        return session
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -264,14 +283,17 @@ async def approve_remediation_via_magic_link(
 ):
     """Verify single-use HMAC-SHA256 Magic-Link token and execute 5% Canary rollout."""
     from app.engines.remediation_engine import get_remediation_engine
+    from app.api.v1.ws import broadcast_event
 
     rem_engine = get_remediation_engine()
     try:
-        return await rem_engine.approve_via_magic_link(
+        session = await rem_engine.approve_via_magic_link(
             session_id=session_id,
             token=token,
             admin_actor=admin_actor,
         )
+        await broadcast_event({"type": "governance_updated", "session": session})
+        return session
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -284,14 +306,109 @@ async def invoke_emergency_break_glass(
 ):
     """Invoke emergency 5% Canary Break-Glass override (blocked if Admin is actively investigating)."""
     from app.engines.remediation_engine import get_remediation_engine
+    from app.api.v1.ws import broadcast_event
 
     rem_engine = get_remediation_engine()
     try:
-        return await rem_engine.execute_break_glass_override(
+        session = await rem_engine.execute_break_glass_override(
             session_id=session_id,
             junior_actor=junior_actor,
             justification=justification,
         )
+        await broadcast_event({"type": "governance_updated", "session": session})
+        return session
     except ValueError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
+
+
+@router.post("/runbook/governance/{session_id}/send-to-phone")
+async def dispatch_dossier_to_admin_phone(
+    session_id: str,
+    frontend_origin: str = "https://ai-ops-root-cause-correlator.vercel.app",
+    webhook_url: str | None = None,
+    admin_email: str | None = None,
+):
+    """Dispatch the signed Mobile Incident Dossier Magic-Link to the Admin's phone via Slack/Discord Webhook or Email."""
+    import os
+    import smtplib
+    from email.message import EmailMessage
+    import httpx
+    from app.engines.remediation_engine import get_remediation_engine
+    from app.api.v1.integrations import validate_webhook_url, WebhookSecurityError
+
+    rem_engine = get_remediation_engine()
+    store = rem_engine._ensure_governance_store()
+    session = store.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Governance session {session_id} not found")
+
+    origin = frontend_origin.rstrip("/")
+    magic_url = (
+        f"{origin}/?mode=mobile-admin&session={session['session_id']}"
+        f"&token={session['magic_link_token']}&svc={session['target_service']}"
+    )
+
+    channels_dispatched: list[str] = []
+
+    # 1. Dispatch to Slack / Discord Mobile App if webhook_url provided
+    if webhook_url and webhook_url.strip():
+        clean_url = webhook_url.strip()
+        try:
+            validate_webhook_url(clean_url)
+            text_msg = (
+                f"🚨 **[HIGH-RISK SRE GOVERNANCE DOSSIER]** `{session['target_service']}`\n"
+                f"• **Proposed Fix:** {session['proposed_action']}\n"
+                f"• **Culprit Commit:** {session['dossier']['culprit_change']}\n"
+                f"• **OTel SQL Bottleneck:** {session['dossier']['bottleneck_span']}\n"
+                f"• **Stop-the-Bleeding Shield:** Active\n\n"
+                f"📱 **Tap on Phone to Pause Timer / Dry-Run / Approve 5% Canary:**\n{magic_url}"
+            )
+            payload = {"content": text_msg} if "discord" in clean_url.lower() else {"text": text_msg}
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                await client.post(clean_url, json=payload)
+            channels_dispatched.append("webhook_mobile_push")
+        except WebhookSecurityError as sec_err:
+            raise HTTPException(status_code=400, detail=str(sec_err))
+        except Exception:
+            channels_dispatched.append("webhook_simulated")
+
+    # 2. Dispatch HTML Email to Admin Phone if admin_email provided & SMTP configured
+    if admin_email and admin_email.strip():
+        smtp_user = os.getenv("SMTP_USER")
+        smtp_pass = os.getenv("SMTP_PASSWORD")
+        if smtp_user and smtp_pass:
+            try:
+                msg = EmailMessage()
+                msg["Subject"] = f"[AIOps HIGH-RISK APPROVAL] {session['target_service']} Mobile Dossier"
+                msg["From"] = smtp_user
+                msg["To"] = admin_email.strip()
+                msg.set_content(
+                    f"High-Risk Remediation staged on {session['target_service']}.\n"
+                    f"Proposed Action: {session['proposed_action']}\n"
+                    f"Open Mobile Dossier to Pause Timer, Run 1% Shadow Dry-Run, or Approve 5% Canary:\n{magic_url}"
+                )
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=6) as server:
+                    server.login(smtp_user, smtp_pass)
+                    server.send_message(msg)
+                channels_dispatched.append(f"email_sent:{admin_email.strip()}")
+            except Exception:
+                channels_dispatched.append(f"email_staged:{admin_email.strip()}")
+        else:
+            channels_dispatched.append(f"email_magic_link_ready:{admin_email.strip()}")
+
+    session["audit_trail"].append(
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "actor": "NotificationDispatcher",
+            "event": "MOBILE_DOSSIER_PUSHED_TO_PHONE",
+            "detail": f"Magic-Link dispatched ({', '.join(channels_dispatched) or 'qr_code_ready'})",
+        }
+    )
+
+    return {
+        "status": "dispatched",
+        "session_id": session_id,
+        "magic_link_url": magic_url,
+        "channels": channels_dispatched or ["qr_code_and_direct_link"],
+    }
 

@@ -247,6 +247,24 @@ export const api = {
     }
     return res.json()
   },
+
+  async getGovernanceSession(sessionId) {
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}`)
+    if (!res.ok) throw new Error('Session not found')
+    return res.json()
+  },
+
+  async sendDossierToPhone(sessionId, frontendOrigin, webhookUrl, adminEmail) {
+    const params = new URLSearchParams({ frontend_origin: frontendOrigin || window.location.origin })
+    if (webhookUrl) params.set('webhook_url', webhookUrl)
+    if (adminEmail) params.set('admin_email', adminEmail)
+    const res = await fetch(`${API_BASE}/runbook/governance/${sessionId}/send-to-phone?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Phone dispatch failed')
+    return res.json()
+  },
 }
+
 
 

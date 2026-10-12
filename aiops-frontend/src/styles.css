@@ -3215,4 +3215,169 @@ button.ghost:hover,
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
 }
 
+/* ============================================================================
+   REAL PHONE DELIVERY (QR CODE, WEBHOOK / EMAIL PUSH & MOBILE STANDALONE VIEW)
+============================================================================ */
+.gov-phone-push-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gov-push-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gov-push-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.gov-qr-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.gov-qr-box {
+  background: rgba(8, 12, 20, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.gov-qr-img {
+  width: 92px;
+  height: 92px;
+  border-radius: 6px;
+  display: block;
+}
+
+.gov-qr-box small {
+  font: 600 9px 'IBM Plex Mono', monospace;
+  color: #38bdf8;
+}
+
+.gov-push-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.gov-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gov-input-group label {
+  font: 600 9.5px 'IBM Plex Mono', monospace;
+  color: #94a3b8;
+}
+
+.gov-input {
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: rgba(7, 11, 18, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #f8fafc;
+  font: 10.5px 'IBM Plex Mono', monospace;
+  outline: none;
+}
+
+.gov-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+}
+
+.gov-push-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gov-send-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #ffffff;
+  font: 600 10.5px 'IBM Plex Mono', monospace;
+}
+
+.gov-copy-btn {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+  font: 600 10px 'IBM Plex Mono', monospace;
+}
+
+.gov-push-status {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+  font: 10px 'IBM Plex Mono', monospace;
+}
+
+/* Fullscreen Smartphone View (?mode=mobile-admin) */
+.mobile-standalone-wrapper {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow-y: auto;
+  z-index: 99999;
+  background: radial-gradient(circle at 50% 0%, #0f172a 0%, #05070b 75%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 14px 28px;
+}
+
+.mobile-standalone-header {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font: 600 11px 'IBM Plex Mono', monospace;
+  color: #93c5fd;
+}
+
+.mobile-standalone-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 22px;
+  background: rgba(10, 15, 25, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
 

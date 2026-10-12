@@ -96,6 +96,15 @@ Experience the live system running in production:
 
 ---
 
+### 9. Out-of-Band Smartphone QR Dossier & Linux eBPF CO-RE Kernel Telemetry
+*Real-time WebSocket synchronization between the SRE Command Center (Linux eBPF `sys_enter_futex` / `tcp_retransmit_skb` probes + OpenTelemetry `/v1/traces` waterfall) and the Principal Admin's smartphone via scannable QR code (`?mode=mobile-admin`) and HMAC-SHA256 Magic Links.*
+
+![Smartphone Mobile Dossier & eBPF Telemetry](docs/images/09_mobile_governance_ebpf_showcase.jpg)
+
+> 📖 **Preparing for a Staff / Principal / Senior SRE Interview?** Read the [**Principal SRE Demo Script, Resume Bullets & System Design Q&A Playbook**](docs/PRINCIPAL_SRE_INTERVIEW_PLAYBOOK.md).
+
+---
+
 ## 🚨 The Operational Problem
 
 > *"When a core microservice degrades, 50+ dependent services trigger cascading alerts simultaneously. On-call engineers spend 1 to 4 hours combing through logs to identify what actually broke."*
@@ -138,7 +147,7 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 | **False-Positive Suppression Precision & F1** | $\ge 90.0\%$ | **100.0%** (F1 = `1.000`) | ✅ **PASSED** |
 | **Forward Blast Radius Accuracy** | $\ge 85.0\%$ | **100.0%** (8 scenarios) | ✅ **PASSED** |
 | **100-Node DAG Correlation Latency ($p_{95} / p_{99}$)** | $< 800\text{ms}$ | **$< 45\text{ms}$** | ✅ **PASSED** |
-| **Automated Unit & Integration Test Suite** | 100% Green | **125 / 125 Passed** | ✅ **PASSED** |
+| **Automated Unit & Integration Test Suite** | 100% Green | **127 / 127 Passed** | ✅ **PASSED** |
 
 ---
 
@@ -153,6 +162,7 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 7. **Multi-Tenant HNSW Vector Signature Partitioning (`SuppressionEngine` & `pgvector`)**: Scopes 7D cyclical cosine-similarity false-positive suppression across `(tenant_id, environment)` partitions.
 8. **Automated Chaos GameDay Scenario Runner (`ChaosGameDayEngine`)**: Orchestrates end-to-end 4-stage production crisis drills (Fault Injection $\to$ Streaming Detection $\to$ Graph & Trace Isolation $\to$ Canary Remediation), measuring real-time **MTTD**, **MTTI**, and **MTTR**.
 9. **Progressive Trust, Admin Investigation Mode & Real-Phone Mobile Dossier (`RemediationEngine` & `AdminGovernanceModal`)**: Solves the out-of-office Principal SRE approval bottleneck using HMAC-SHA256 signed Magic-Link Dossiers, scannable **QR codes** (`?mode=mobile-admin`), instant Discord/Slack/SMTP phone push, an **Investigation Hold Timer** (`👀 Acknowledge & Pause Timer`), **1% Shadow Dry-Run Sandbox**, and an automatic **Unreachable-Admin 5% Canary Break-Glass** fallback.
+10. **Zero-Instrumentation Linux eBPF CO-RE Kernel Probes & Standard OTLP `/v1/traces` Receiver (`EbpfKernelProbeEngine` & `OtlpTraceReceiver`)**: Ingests standard OpenTelemetry `resourceSpans` payloads over `/api/v1/diagnostics/otlp/v1/traces` and correlates them with Linux eBPF kernel tracepoints (`syscalls:sys_enter_futex`, `tcp:tcp_retransmit_skb`, `sched:sched_switch`) to distinguish DB socket lock waits from CFS CPU cgroup throttling.
 
 ---
 
@@ -163,7 +173,8 @@ flowchart TD
     subgraph DataPlane ["Telemetry Ingestion & Event Backbone"]
         K1["Apache Kafka KRaft + RingBuffer Backpressure"] -->|service.telemetry| E1["Diurnal Fourier + Winsorized EWMA Detector"]
         K1 -->|service.errors| E1
-        OT["OpenTelemetry Spans"] -->|Critical-Path Span Tree| TA["TraceAttributionEngine"]
+        OT["OpenTelemetry OTLP /v1/traces"] -->|Critical-Path Span Tree| TA["TraceAttributionEngine"]
+        EBPF["Linux eBPF CO-RE Probes (futex / tcp / sched)"] -->|Zero-Copy RingBuf| TA
     end
 
     subgraph AnalyticsEngine ["Causal Inference & Correlation"]

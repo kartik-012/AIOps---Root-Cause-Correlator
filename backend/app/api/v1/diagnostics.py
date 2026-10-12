@@ -117,3 +117,32 @@ async def restore_health(
             return {"status": "restored", "service_id": service_id, **resp.json()}
         except httpx.ConnectError:
             raise HTTPException(status_code=503, detail="gRPC diagnostic simulator not reachable")
+
+
+@router.get("/diagnostics/ebpf/{service_id}")
+async def get_ebpf_kernel_probes(
+    service_id: str = "payment-service",
+    fault_type: str = Query("db_pool_exhaustion", description="Fault profile for eBPF kprobe inspection"),
+):
+    """Inspect zero-instrumentation Linux eBPF CO-RE kernel probes (kprobes/tracepoints) for a service."""
+    from app.engines.ebpf_otel_engine import EbpfKernelProbeEngine
+
+    engine = EbpfKernelProbeEngine()
+    report = engine.inspect_service_kernel_probes(service_id=service_id, fault_type=fault_type)
+    return report.to_dict()
+
+
+@router.post("/diagnostics/otlp/v1/traces")
+async def ingest_otlp_traces(payload: dict | None = None):
+    """Standards-compliant OpenTelemetry OTLP/HTTP JSON `/v1/traces` receiver.
+
+    Accepts any `resourceSpans` JSON payload (or generates a sample OTLP cascade trace
+    if called with an empty body), runs exclusive critical-path span attribution, and
+    fuses Linux eBPF kernel-space telemetry.
+    """
+    from app.engines.ebpf_otel_engine import OtlpTraceReceiver
+
+    receiver = OtlpTraceReceiver()
+    effective_payload = payload if (payload and payload.get("resourceSpans")) else receiver.build_sample_otlp_payload()
+    return receiver.ingest_otlp_json(effective_payload)
+

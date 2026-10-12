@@ -3379,5 +3379,55 @@ button.ghost:hover,
   gap: 12px;
 }
 
+.otlp-ingest-pill-btn {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #7dd3fc;
+  font: 600 9.5px 'IBM Plex Mono', monospace;
+  cursor: pointer;
+}
+
+.otlp-ingest-pill-btn:hover {
+  background: rgba(56, 189, 248, 0.28);
+}
+
+.otlp-ingest-toast {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  font: 600 9.5px 'IBM Plex Mono', monospace;
+}
+
+.ebpf-hook-row {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.ebpf-status-pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font: 600 9.5px 'IBM Plex Mono', monospace;
+}
+
+.ebpf-status-pill.crit {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.ebpf-status-pill.nom {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+
 
 

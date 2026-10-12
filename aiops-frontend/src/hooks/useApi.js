@@ -264,6 +264,24 @@ export const api = {
     if (!res.ok) throw new Error('Phone dispatch failed')
     return res.json()
   },
+
+  // Principal SRE Feature 6: Linux eBPF CO-RE Kernel Probes & Standard OTLP /v1/traces Receiver
+  async getEbpfKernelProbes(serviceId = 'payment-service', faultType = 'db_pool_exhaustion') {
+    const params = new URLSearchParams({ fault_type: faultType })
+    const res = await fetch(`${API_BASE}/diagnostics/ebpf/${serviceId}?${params.toString()}`)
+    if (!res.ok) throw new Error('eBPF probe fetch failed')
+    return res.json()
+  },
+
+  async ingestOtlpTraces(payload = null) {
+    const res = await fetch(`${API_BASE}/diagnostics/otlp/v1/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    })
+    if (!res.ok) throw new Error('OTLP trace ingestion failed')
+    return res.json()
+  },
 }
 
 

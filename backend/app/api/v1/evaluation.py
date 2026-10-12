@@ -26,10 +26,17 @@ def run_evaluation_scenarios():
         failed=report.failed_scenarios,
         naive_baseline_accuracy=report.naive_baseline_accuracy,
         mean_pipeline_latency_ms=report.mean_pipeline_latency_ms,
+        p50_pipeline_latency_ms=report.p50_pipeline_latency_ms,
         p95_pipeline_latency_ms=report.p95_pipeline_latency_ms,
+        p99_pipeline_latency_ms=report.p99_pipeline_latency_ms,
         detection_events_processed=report.detection_events_processed,
         suppression_tp=report.suppression_tp,
         suppression_fp=report.suppression_fp,
         suppression_tn=report.suppression_tn,
         suppression_fn=report.suppression_fn,
+        suppression_f1=report.suppression_f1,
+        top1_confidence_interval_95=list(report.top1_confidence_interval_95),
+        top3_confidence_interval_95=list(report.top3_confidence_interval_95),
+        overall_pass_confidence_interval_95=list(report.overall_pass_confidence_interval_95),
     )
+

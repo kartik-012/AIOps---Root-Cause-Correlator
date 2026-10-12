@@ -11,32 +11,36 @@ from app.dependencies import get_db, get_session_factory
 from app.config import get_settings
 
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from app.models.db_models import Base
+
+
 @pytest.fixture
-def client():
-    return TestClient(app)
+def test_db_engine():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return engine
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    """Clean database before each integration test."""
-    settings = get_settings()
-    session_factory = get_session_factory(settings)
-    try:
-        with session_factory() as session:
-            session.execute(text("TRUNCATE TABLE runbook_suggestions CASCADE"))
-            session.execute(text("TRUNCATE TABLE blast_radius_predictions CASCADE"))
-            session.execute(text("TRUNCATE TABLE suppressions CASCADE"))
-            session.execute(text("TRUNCATE TABLE incident_affected_services CASCADE"))
-            session.execute(text("TRUNCATE TABLE incidents CASCADE"))
-            session.execute(text("TRUNCATE TABLE anomalies CASCADE"))
-            session.execute(text("TRUNCATE TABLE metrics_raw CASCADE"))
-            session.execute(text("TRUNCATE TABLE service_dependencies CASCADE"))
-            session.execute(text("TRUNCATE TABLE services CASCADE"))
-            session.commit()
-    except Exception:
-        pass
+@pytest.fixture
+def client(test_db_engine):
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
 
-    yield
+    def override_get_db():
+        with TestingSessionLocal() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_session_factory] = lambda: TestingSessionLocal
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
 
 
 def test_full_incident_lifecycle(client):

@@ -21,9 +21,33 @@ from app.engines.suppression_engine import SuppressionEngine, build_signature
 from app.engines.prediction_engine import PredictionEngine
 
 
+def compute_wilson_ci_95(
+    successes: int,
+    total: int,
+    z: float = 1.95996,
+) -> tuple[float, float]:
+    """Compute the Wilson score 95% confidence interval for a binomial proportion.
+
+    Unlike normal Wald approximation (which degenerates to [1.0, 1.0] when p_hat = 1.0),
+    Wilson score intervals remain statistically valid for finite sample sizes n.
+    """
+    n = int(total)
+    if n <= 0:
+        return (0.0, 0.0)
+    k = max(0, min(int(successes), n))
+    p_hat = k / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    center = (p_hat + z2 / (2.0 * n)) / denom
+    half_width = (z * math.sqrt((p_hat * (1.0 - p_hat) + z2 / (4.0 * n)) / n)) / denom
+    lower = round(max(0.0, center - half_width), 4)
+    upper = round(min(1.0, center + half_width), 4)
+    return (lower, upper)
+
+
 @dataclass
 class EvaluationReport:
-    """Full benchmark evaluation metrics with confusion matrix and baseline comparison."""
+    """Full benchmark evaluation metrics with confusion matrix, Wilson 95% CIs, and baseline comparison."""
     top1_accuracy: float
     top3_accuracy: float
     multi_incident_separation_accuracy: float
@@ -38,15 +62,22 @@ class EvaluationReport:
     # Extended verification metrics proving end-to-end execution
     naive_baseline_accuracy: float = 0.0
     mean_pipeline_latency_ms: float = 0.0
+    p50_pipeline_latency_ms: float = 0.0
     p95_pipeline_latency_ms: float = 0.0
+    p99_pipeline_latency_ms: float = 0.0
     detection_events_processed: int = 0
     suppression_tp: int = 0
     suppression_fp: int = 0
     suppression_tn: int = 0
     suppression_fn: int = 0
+    suppression_f1: float = 0.0
+    top1_confidence_interval_95: tuple[float, float] = (0.0, 0.0)
+    top3_confidence_interval_95: tuple[float, float] = (0.0, 0.0)
+    overall_pass_confidence_interval_95: tuple[float, float] = (0.0, 0.0)
 
 
 class EvaluationRunner:
+
     """Benchmark runner for synthetic evaluation fixtures."""
 
     def __init__(self, fixtures_dir: Path | str | None = None):
@@ -457,16 +488,29 @@ class EvaluationRunner:
         supp_prec = round(suppression_tp / supp_denom, 3) if supp_denom > 0 else 1.0
         supp_recall_denom = suppression_tp + suppression_fn
         supp_recall = round(suppression_tp / supp_recall_denom, 3) if supp_recall_denom > 0 else 1.0
+        supp_f1 = (
+            round(2.0 * supp_prec * supp_recall / (supp_prec + supp_recall), 3)
+            if (supp_prec + supp_recall) > 0
+            else 0.0
+        )
 
         blast_acc = round(blast_correct / max(blast_total, 1), 3)
         mean_det_time = round(sum(detection_times) / max(len(detection_times), 1), 4)
         mean_lat_ms = round(sum(pipeline_latencies_ms) / max(len(pipeline_latencies_ms), 1), 3)
         sorted_lat = sorted(pipeline_latencies_ms)
+        p50_idx = min(int(math.ceil(0.50 * len(sorted_lat))) - 1, len(sorted_lat) - 1) if sorted_lat else 0
         p95_idx = min(int(math.ceil(0.95 * len(sorted_lat))) - 1, len(sorted_lat) - 1) if sorted_lat else 0
+        p99_idx = min(int(math.ceil(0.99 * len(sorted_lat))) - 1, len(sorted_lat) - 1) if sorted_lat else 0
+        p50_lat_ms = round(sorted_lat[p50_idx], 3) if sorted_lat else 0.0
         p95_lat_ms = round(sorted_lat[p95_idx], 3) if sorted_lat else 0.0
+        p99_lat_ms = round(sorted_lat[p99_idx], 3) if sorted_lat else 0.0
 
         passed_cnt = sum(1 for d in details if d["passed"])
         failed_cnt = len(details) - passed_cnt
+
+        top1_ci = compute_wilson_ci_95(single_top1_correct, single_total)
+        top3_ci = compute_wilson_ci_95(single_top3_correct, single_total)
+        overall_ci = compute_wilson_ci_95(passed_cnt, len(scenarios))
 
         return EvaluationReport(
             top1_accuracy=top1_acc,
@@ -482,10 +526,82 @@ class EvaluationRunner:
             details=details,
             naive_baseline_accuracy=naive_acc,
             mean_pipeline_latency_ms=mean_lat_ms,
+            p50_pipeline_latency_ms=p50_lat_ms,
             p95_pipeline_latency_ms=p95_lat_ms,
+            p99_pipeline_latency_ms=p99_lat_ms,
             detection_events_processed=total_detection_samples,
             suppression_tp=suppression_tp,
             suppression_fp=suppression_fp,
             suppression_tn=suppression_tn,
             suppression_fn=suppression_fn,
+            suppression_f1=supp_f1,
+            top1_confidence_interval_95=top1_ci,
+            top3_confidence_interval_95=top3_ci,
+            overall_pass_confidence_interval_95=overall_ci,
         )
+
+    @staticmethod
+    def benchmark_100_node_graph_latency(iterations: int = 25) -> dict[str, float]:
+        """Measure wall-clock correlation latency (perf_counter_ns) on a 100-node microservice topology.
+
+        Constructs a realistic 5-tier 100-service topology (Edge -> API -> Domain -> Data -> Storage)
+        with a 15-service cascading anomaly storm and reports p50, p95, and p99 compute latency in ms.
+        """
+        services = [
+            {"id": f"svc-tier{i // 20}-node{i}", "tier": f"tier_{i // 20}", "revenue_weight": round(1.0 - (i / 150.0), 2)}
+            for i in range(100)
+        ]
+        edges = []
+        for i in range(80):
+            # Connect each node in tiers 0..3 to two downstream dependencies in the next tier
+            target_a = ((i // 20) + 1) * 20 + (i % 20)
+            target_b = ((i // 20) + 1) * 20 + ((i + 1) % 20)
+            edges.append({"source": f"svc-tier{i // 20}-node{i}", "target": f"svc-tier{(i // 20) + 1}-node{target_a % 20 + ((i // 20) + 1) * 20}"})
+            edges.append({"source": f"svc-tier{i // 20}-node{i}", "target": f"svc-tier{(i // 20) + 1}-node{target_b % 20 + ((i // 20) + 1) * 20}"})
+
+        dep_graph = DependencyGraph.from_nodes_and_edges(services, edges)
+        corr_engine = CorrelationEngine(dep_graph)
+
+        t0 = datetime(2026, 8, 25, 12, 0, 0, tzinfo=timezone.utc)
+        # Create a 5-hop cascading anomaly chain ending at deep leaf svc-tier4-node80
+        chain_nodes = [
+            ("svc-tier4-node80", 0, 8.5, "critical"),
+            ("svc-tier3-node60", 2, 6.2, "high"),
+            ("svc-tier2-node40", 5, 5.1, "high"),
+            ("svc-tier1-node20", 8, 4.3, "medium"),
+            ("svc-tier0-node0", 11, 3.8, "medium"),
+        ]
+        anomalies = [
+            AnomalyEvent(
+                service_id=svc_id,
+                metric_type="latency_ms",
+                z_score=z_val,
+                severity=sev,
+                detected_at=t0 + timedelta(seconds=offset_s),
+            )
+            for svc_id, offset_s, z_val, sev in chain_nodes
+        ]
+
+        latencies_ms: list[float] = []
+        for _ in range(max(1, iterations)):
+            ns_start = time.perf_counter_ns()
+            incidents = corr_engine.correlate(anomalies)
+            ns_elapsed = time.perf_counter_ns() - ns_start
+            assert incidents and incidents[0].root_cause_service_id == "svc-tier4-node80"
+            latencies_ms.append(ns_elapsed / 1_000_000.0)
+
+        sorted_ms = sorted(latencies_ms)
+        n = len(sorted_ms)
+        p50 = sorted_ms[min(int(math.ceil(0.50 * n)) - 1, n - 1)]
+        p95 = sorted_ms[min(int(math.ceil(0.95 * n)) - 1, n - 1)]
+        p99 = sorted_ms[min(int(math.ceil(0.99 * n)) - 1, n - 1)]
+        return {
+            "nodes": 100,
+            "edges": len(edges),
+            "iterations": n,
+            "mean_ms": round(sum(sorted_ms) / n, 3),
+            "p50_ms": round(p50, 3),
+            "p95_ms": round(p95, 3),
+            "p99_ms": round(p99, 3),
+        }
+

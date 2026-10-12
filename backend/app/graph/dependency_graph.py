@@ -95,6 +95,18 @@ class DependencyGraph:
         target_g = subgraph if subgraph is not None else self.graph
         return [set(c) for c in nx.weakly_connected_components(target_g)]
 
+    def has_cycles(self, subgraph: nx.DiGraph | None = None) -> bool:
+        """Return True if the directed graph (or subgraph) contains at least one cycle."""
+        target_g = subgraph if subgraph is not None else self.graph
+        if len(target_g) == 0:
+            return False
+        return not nx.is_directed_acyclic_graph(target_g)
+
+    def get_strongly_connected_components(self, subgraph: nx.DiGraph | None = None) -> list[set[str]]:
+        """Return strongly connected components (SCCs) for cycle-safe condensation."""
+        target_g = subgraph if subgraph is not None else self.graph
+        return [set(c) for c in nx.strongly_connected_components(target_g)]
+
     def get_betweenness_centrality(self) -> dict[str, float]:
         """Calculate betweenness centrality for all nodes in the graph."""
         if len(self.graph) == 0:
@@ -104,3 +116,4 @@ class DependencyGraph:
     def get_node_data(self, service_id: str) -> dict[str, Any]:
         """Get attributes dictionary for a service."""
         return self.graph.nodes.get(service_id, {})
+

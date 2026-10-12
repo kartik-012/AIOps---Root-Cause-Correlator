@@ -75,6 +75,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[AIOps Startup] Note: Could not auto-seed database: {e}")
 
+    embedded_grpc = None
+    try:
+        from app.grpc_services.diagnostic_server import start_embedded_grpc_server
+
+        embedded_grpc = start_embedded_grpc_server(port=50051)
+        app.state.embedded_grpc = embedded_grpc
+    except Exception as e:
+        print(f"[AIOps Startup] Note: Could not start embedded gRPC loopback server: {e}")
+
     try:
         producer = get_kafka_producer()
         await producer.start()
@@ -90,6 +99,12 @@ async def lifespan(app: FastAPI):
 
     yield
     
+    if embedded_grpc is not None:
+        try:
+            embedded_grpc.stop(grace=1.0)
+        except Exception:
+            pass
+
     try:
         producer = get_kafka_producer()
         await producer.stop()

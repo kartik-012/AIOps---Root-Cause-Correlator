@@ -29,17 +29,21 @@ def build_incident_explanation(db: Session, incident_id: uuid.UUID) -> ExplainRe
     inc, root_svc = row[0], row[1]
     root_svc_name = root_svc.name if root_svc else "unknown-service"
 
-    # Single SQL JOIN to fetch affected services in propagation order
+    # Single SQL JOIN to fetch affected services and their revenue_weight in propagation order
     ias_rows = db.execute(
-        select(Service.name, IncidentAffectedService.propagation_order)
+        select(Service.name, IncidentAffectedService.propagation_order, Service.revenue_weight)
         .join(Service, IncidentAffectedService.service_id == Service.id)
         .where(IncidentAffectedService.incident_id == incident_id)
         .order_by(IncidentAffectedService.propagation_order.asc())
     ).all()
 
     affected_names = [
-        svc_name for svc_name, _ in ias_rows if svc_name and svc_name != root_svc_name
+        svc_name for svc_name, _, _ in ias_rows if svc_name and svc_name != root_svc_name
     ]
+    root_rev_weight = float(root_svc.revenue_weight or 0.0) if root_svc else 0.0
+    total_rev_weight = root_rev_weight + sum(
+        float(rev_w or 0.0) for svc_name, _, rev_w in ias_rows if svc_name and svc_name != root_svc_name
+    )
 
     rc_type_readable = (inc.root_cause_type or "system_anomaly").replace("_", " ")
     conf_pct = int((inc.confidence_at_detection or 0.85) * 100)
@@ -58,6 +62,8 @@ def build_incident_explanation(db: Session, incident_id: uuid.UUID) -> ExplainRe
 
     if affected_names:
         evidence.append(f"Propagation sequence verified across: {', '.join([root_svc_name] + affected_names)}")
+    if total_rev_weight > 0.0:
+        evidence.append(f"Business SLA & revenue exposure index across blast radius: {total_rev_weight:.2f}")
     if inc.anomaly_signature is not None:
         evidence.append("Historical signature matches known incident taxonomy patterns")
 

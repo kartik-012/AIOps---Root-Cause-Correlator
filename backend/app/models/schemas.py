@@ -259,12 +259,19 @@ class EvaluationMetrics(BaseModel):
     failed: int = 0
     naive_baseline_accuracy: float | None = None
     mean_pipeline_latency_ms: float | None = None
+    p50_pipeline_latency_ms: float | None = None
     p95_pipeline_latency_ms: float | None = None
+    p99_pipeline_latency_ms: float | None = None
     detection_events_processed: int = 0
     suppression_tp: int = 0
     suppression_fp: int = 0
     suppression_tn: int = 0
     suppression_fn: int = 0
+    suppression_f1: float | None = None
+    top1_confidence_interval_95: list[float] = []
+    top3_confidence_interval_95: list[float] = []
+    overall_pass_confidence_interval_95: list[float] = []
+
 
 
 # ---------------------------------------------------------------------------

@@ -141,6 +141,33 @@ def run_internal_api():
     server = HTTPServer(('0.0.0.0', 8000), InternalAPIHandler)
     server.serve_forever()
 
+def start_embedded_grpc_server(port: int = 50051):
+    """Start the gRPC DiagnosticService in-process on local loopback if port 50051 is not already bound.
+
+    Enables single-port PaaS deployments (e.g. Render Free) and local single-process runs
+    to execute real Protobuf gRPC verification and chaos probes without requiring a separate container.
+    """
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.2)
+        if sock.connect_ex(("127.0.0.1", port)) == 0:
+            logger.info("gRPC port %d already bound; skipping embedded gRPC startup", port)
+            return None
+
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
+    servicer = DiagnosticServiceServicer()
+    servicer.state_manager = _global_state_manager
+    diagnostics_pb2_grpc.add_DiagnosticServiceServicer_to_server(servicer, server)
+    bound_port = server.add_insecure_port(f"127.0.0.1:{port}")
+    if bound_port == 0:
+        logger.warning("Could not bind embedded gRPC server on 127.0.0.1:%d", port)
+        return None
+    server.start()
+    logger.info("Embedded loopback gRPC Diagnostic Server started on 127.0.0.1:%d", port)
+    return server
+
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     servicer = DiagnosticServiceServicer()
@@ -159,3 +186,4 @@ def serve():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     serve()
+

@@ -94,6 +94,10 @@ class ServiceStateManager:
         self.services: Dict[str, ServiceState] = {}
         self._initialize_services()
 
+    @staticmethod
+    def _normalize_id(service_id: str) -> str:
+        return (service_id or "").strip().lower().replace(" ", "-")
+
     def _initialize_services(self):
         service_names = [
             "api-gateway", "auth-service", "product-catalog",
@@ -103,25 +107,85 @@ class ServiceStateManager:
         for name in service_names:
             self.services[name] = ServiceState(name, name.replace("-", " ").title())
 
+    def _get_or_create(self, service_id: str) -> ServiceState:
+        norm = self._normalize_id(service_id)
+        if norm not in self.services:
+            self.services[norm] = ServiceState(norm, norm.replace("-", " ").title())
+        return self.services[norm]
+
     def inject_fault(self, service_id: str, fault_type: str) -> bool:
-        if service_id not in self.services:
+        if not service_id:
             return False
-        service = self.services[service_id]
-        service.last_fault = fault_type
+        service = self._get_or_create(service_id)
+        # Normalize common root_cause_type aliases to fault_type
+        alias_map = {
+            "db_connection_exhaustion": "db_pool_exhaustion",
+            "network_latency_injection": "network_latency",
+        }
+        eff_fault = alias_map.get(fault_type, fault_type)
+        service.last_fault = eff_fault
         service.fault_start_time = time.time()
+
+        # Immediately reflect fault state before next drift tick
+        if eff_fault == "db_pool_exhaustion":
+            service.active_connections = int(service.max_connections * 0.96)
+            service.p95_latency_ms = max(service.p95_latency_ms, 420.0)
+            service.error_rate = max(service.error_rate, 0.18)
+            service.status = HealthStatus.CRITICAL
+            if "High Database Connections" not in service.active_alerts:
+                service.active_alerts.append("High Database Connections")
+        elif eff_fault == "memory_leak":
+            service.memory_usage_percent = max(service.memory_usage_percent, 94.0)
+            service.error_rate = max(service.error_rate, 0.12)
+            service.status = HealthStatus.CRITICAL
+            if "OOM Warning" not in service.active_alerts:
+                service.active_alerts.append("OOM Warning")
+        elif eff_fault == "cpu_spike":
+            service.cpu_usage_percent = max(service.cpu_usage_percent, 97.0)
+            service.p95_latency_ms = max(service.p95_latency_ms, 280.0)
+            service.status = HealthStatus.CRITICAL
+            if "CPU Starvation" not in service.active_alerts:
+                service.active_alerts.append("CPU Starvation")
+        elif eff_fault == "network_latency":
+            service.p95_latency_ms = max(service.p95_latency_ms, 650.0)
+            service.error_rate = max(service.error_rate, 0.15)
+            service.status = HealthStatus.UNHEALTHY
+            if "High Network Latency" not in service.active_alerts:
+                service.active_alerts.append("High Network Latency")
+        elif eff_fault == "disk_io_saturation":
+            service.disk_io_percent = max(service.disk_io_percent, 96.0)
+            service.p95_latency_ms = max(service.p95_latency_ms, 390.0)
+            service.status = HealthStatus.CRITICAL
+            if "Disk IO Bottleneck" not in service.active_alerts:
+                service.active_alerts.append("Disk IO Bottleneck")
+        else:
+            service.status = HealthStatus.DEGRADED
+            service.error_rate = max(service.error_rate, 0.10)
+
         return True
 
-    def restore_health(self, service_id: str) -> bool:
-        if service_id not in self.services:
+    def restore_health(self, service_id: str, max_connections: int | None = None) -> bool:
+        """Closed-loop remediation: clear active fault and restore healthy baseline metrics."""
+        if not service_id:
             return False
-        service = self.services[service_id]
+        service = self._get_or_create(service_id)
         service.last_fault = None
+        service.fault_start_time = 0
+        if max_connections is not None and max_connections > 0:
+            service.max_connections = int(max_connections)
+        service.status = HealthStatus.HEALTHY
+        service.cpu_usage_percent = 14.5
+        service.memory_usage_percent = 28.0
+        service.disk_io_percent = 4.5
+        service.active_connections = 32
+        service.error_rate = 0.0
+        service.p95_latency_ms = 11.5
+        service.active_alerts = []
         return True
 
-    def get_state(self, service_id: str) -> ServiceState:
-        if service_id not in self.services:
-            # Return a default healthy if unknown
-            return ServiceState(service_id, service_id)
-        service = self.services[service_id]
-        service.apply_drift()
+    def get_state(self, service_id: str, apply_drift: bool = True) -> ServiceState:
+        service = self._get_or_create(service_id or "unknown-service")
+        if apply_drift:
+            service.apply_drift()
         return service
+

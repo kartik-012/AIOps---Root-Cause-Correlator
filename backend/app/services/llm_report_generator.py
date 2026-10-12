@@ -42,15 +42,18 @@ class AnomalyEvidenceItem:
 
 @dataclass
 class GroundingValidationResult:
-    """Outcome of checking LLM output against verified topology and evidence."""
+    """Outcome of checking LLM output against verified topology, citation IDs, and anomaly IDs."""
     is_valid: bool
     hallucinated_services: list[str] = field(default_factory=list)
+    unverified_citations: list[str] = field(default_factory=list)
+    verified_citations: list[str] = field(default_factory=list)
+    citation_coverage: float = 1.0
     missing_root_cause: bool = False
-    reason: str = "Grounding verified against incident topology"
+    reason: str = "Grounding verified against incident topology and telemetry citations"
 
 
 class LLMReportGenerator:
-    """Generates evidence-grounded executive post-mortems with hallucination verification."""
+    """Generates evidence-grounded executive post-mortems with hallucination & citation verification."""
 
     def __init__(
         self,
@@ -83,11 +86,11 @@ class LLMReportGenerator:
         markdown_text: str,
         root_cause_service: str,
         allowed_services: list[str],
+        valid_citation_ids: list[str] | None = None,
+        valid_anomaly_ids: list[str] | None = None,
     ) -> GroundingValidationResult:
-        """Verify that generated Markdown cites the true root cause and invents no fake services.
-
-        Scans for microservice-like identifiers (`<name>-service`, `<name>-gateway`, `<name>-catalog`,
-        `<name>-db`) and rejects the report if any mentioned service is outside the verified topology.
+        """Verify that generated Markdown cites the true root cause, invents no fake services,
+        and only references verified [EVID-k] and anomaly_id citations.
         """
         norm_root = cls._normalize_service_token(root_cause_service)
         allowed_norm = {cls._normalize_service_token(s) for s in allowed_services}
@@ -100,6 +103,7 @@ class LLMReportGenerator:
             return GroundingValidationResult(
                 is_valid=False,
                 missing_root_cause=True,
+                citation_coverage=0.0,
                 reason=f"Generated report failed to cite verified root cause '{root_cause_service}'",
             )
 
@@ -120,10 +124,56 @@ class LLMReportGenerator:
             return GroundingValidationResult(
                 is_valid=False,
                 hallucinated_services=hallucinated,
+                citation_coverage=0.0,
                 reason=f"Hallucinated unverified service(s) not in incident topology: {', '.join(hallucinated)}",
             )
 
-        return GroundingValidationResult(is_valid=True)
+        # Differentiator #7: Verify [EVID-k] and anomaly_id citations against ground-truth evidence
+        referenced_evids = sorted(set(re.findall(r"\b(EVID-\d+)\b", markdown_text)))
+        referenced_anom_ids = sorted(set(re.findall(r"anomaly_id=([a-zA-Z0-9_-]+)", markdown_text)))
+
+        unverified: list[str] = []
+        verified: list[str] = []
+        coverage = 1.0
+
+        if valid_citation_ids is not None:
+            valid_evid_set = set(valid_citation_ids)
+            for eid in referenced_evids:
+                if eid in valid_evid_set:
+                    verified.append(eid)
+                else:
+                    unverified.append(eid)
+
+            if valid_evid_set and not verified:
+                return GroundingValidationResult(
+                    is_valid=False,
+                    unverified_citations=unverified,
+                    verified_citations=[],
+                    citation_coverage=0.0,
+                    reason="Generated report omitted all required [EVID-k] evidence citations",
+                )
+            coverage = round(len(verified) / max(len(valid_evid_set), 1), 2)
+
+        if valid_anomaly_ids is not None and referenced_anom_ids:
+            valid_anom_set = set(valid_anomaly_ids)
+            for aid in referenced_anom_ids:
+                if aid not in valid_anom_set:
+                    unverified.append(f"anomaly_id={aid}")
+
+        if unverified:
+            return GroundingValidationResult(
+                is_valid=False,
+                unverified_citations=unverified,
+                verified_citations=verified,
+                citation_coverage=coverage,
+                reason=f"Hallucinated unverified citation ID(s): {', '.join(unverified)}",
+            )
+
+        return GroundingValidationResult(
+            is_valid=True,
+            verified_citations=verified,
+            citation_coverage=coverage,
+        )
 
     @staticmethod
     def compute_mttd_seconds(
@@ -177,6 +227,7 @@ class LLMReportGenerator:
             for idx, a in enumerate(anomalies, start=1):
                 citations.append({
                     "citation_id": f"EVID-{idx}",
+                    "anomaly_id": str(a.anomaly_id),
                     "type": "telemetry_anomaly",
                     "service": a.service_name,
                     "metric": a.metric_type,
@@ -187,6 +238,7 @@ class LLMReportGenerator:
         else:
             citations.append({
                 "citation_id": "EVID-1",
+                "anomaly_id": "synthetic-root-anom",
                 "type": "root_cause_isolation",
                 "service": root_cause_service,
                 "metric": root_cause_type,
@@ -203,6 +255,7 @@ class LLMReportGenerator:
             "upstream_impacted_callers": affected_services,
         })
         return citations
+
 
     def _call_llm_provider(
         self,
@@ -329,7 +382,7 @@ class LLMReportGenerator:
         for c in citations:
             if c["type"] == "telemetry_anomaly":
                 evidence_bullets.append(
-                    f"* **[{c['citation_id']}]** `{c['service']}` — `{c['metric']}` spiked to "
+                    f"* **[{c['citation_id']}]** (`anomaly_id={c.get('anomaly_id', 'n/a')}`) `{c['service']}` — `{c['metric']}` spiked to "
                     f"**z = {c['z_score']}** ({c['severity']}) at `{c['timestamp']}`"
                 )
             elif c["type"] == "topology_causality":
@@ -386,16 +439,24 @@ The **AIOps Root Cause Correlator** isolated the originating microservice in **{
 4. **Vector Suppression Memory:** Store the normalized 7-dimensional incident signature in PostgreSQL `pgvector` for future false-positive evaluation.
 """
 
+        valid_citation_ids = [c["citation_id"] for c in citations if "citation_id" in c]
+        valid_anomaly_ids = [str(c["anomaly_id"]) for c in citations if "anomaly_id" in c]
+
         generation_mode = "deterministic_evidence_synthesizer"
         model_used = f"deterministic-{PROMPT_VERSION}"
         final_markdown = deterministic_markdown
-        grounding_result = GroundingValidationResult(is_valid=True)
+        grounding_result = GroundingValidationResult(
+            is_valid=True,
+            verified_citations=valid_citation_ids,
+            citation_coverage=1.0,
+        )
+        llm_fallback_triggered = False
 
         if self.api_key:
             system_prompt = (
                 "You are a Principal Site Reliability Engineer writing a factual incident post-mortem. "
                 "You MUST ONLY reference services, metrics, Z-scores, and timestamps explicitly provided "
-                "in the Verified Evidence JSON. Do NOT invent or mention any other microservice names. "
+                "in the Verified Evidence JSON. Do NOT invent or mention any other microservice names or citation IDs. "
                 "Cite evidence items using [EVID-1], [EVID-2], etc."
             )
             user_prompt = (
@@ -417,6 +478,8 @@ The **AIOps Root Cause Correlator** isolated the originating microservice in **{
                     markdown_text=llm_text,
                     root_cause_service=root_cause_service,
                     allowed_services=[root_cause_service] + list(affected_services),
+                    valid_citation_ids=valid_citation_ids,
+                    valid_anomaly_ids=valid_anomaly_ids,
                 )
                 grounding_result = validation
                 if validation.is_valid:
@@ -424,6 +487,7 @@ The **AIOps Root Cause Correlator** isolated the originating microservice in **{
                     generation_mode = "llm_grounded"
                     model_used = f"{self.provider}:{self.model}"
                 else:
+                    llm_fallback_triggered = True
                     logger.warning(
                         "Rejected ungrounded LLM output for incident %s: %s",
                         incident_id,
@@ -439,6 +503,10 @@ The **AIOps Root Cause Correlator** isolated the originating microservice in **{
             "prompt_version": PROMPT_VERSION,
             "grounding_verified": grounding_result.is_valid,
             "grounding_notes": grounding_result.reason,
+            "verified_citations": grounding_result.verified_citations,
+            "unverified_citations": grounding_result.unverified_citations,
+            "citation_coverage": grounding_result.citation_coverage,
+            "llm_fallback_triggered": llm_fallback_triggered,
             "evidence_citations": citations,
             "markdown": final_markdown,
             "financial_exposure": financial_est,
@@ -446,3 +514,4 @@ The **AIOps Root Cause Correlator** isolated the originating microservice in **{
             "mttd_seconds": mttd_sec,
             "mttr": f"{duration_minutes}m",
         }
+

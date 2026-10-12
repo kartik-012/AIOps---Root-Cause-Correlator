@@ -148,11 +148,55 @@ def validate_webhook_url(url: str, resolve_dns: bool = True) -> str:
 
 
 class SlackNotifier:
-    """Dispatches rich incident correlation cards to verified Slack or Discord webhooks."""
+    """Dispatches rich incident correlation cards to verified Slack or Discord webhooks
+    with atomic Redis (`SET alert:dedup:{incident_id} 1 NX EX 300`) + monotonic TTL deduplication.
+    """
 
-    def __init__(self, default_webhook_url: str | None = None, resolve_dns: bool = True):
+    def __init__(
+        self,
+        default_webhook_url: str | None = None,
+        resolve_dns: bool = True,
+        dedup_ttl_seconds: int = 300,
+        redis_client: Any | None = None,
+    ):
         self.default_webhook_url = default_webhook_url or os.getenv("SLACK_WEBHOOK_URL")
         self.resolve_dns = resolve_dns
+        self.dedup_ttl_seconds = max(1, int(dedup_ttl_seconds))
+        self._redis_client = redis_client
+        self._memory_dedup: dict[str, float] = {}
+
+    async def acquire_idempotency_lock(
+        self,
+        incident_id: str,
+        ttl_seconds: int | None = None,
+    ) -> tuple[bool, str]:
+        """Atomically acquire idempotency lock `alert:dedup:{incident_id}` with TTL (default 300s).
+
+        Returns (acquired: bool, backend: str) where backend is 'redis_nx' or 'memory_ttl'.
+        """
+        import time
+
+        eff_ttl = max(1, int(ttl_seconds if ttl_seconds is not None else self.dedup_ttl_seconds))
+        dedup_key = f"alert:dedup:{incident_id}"
+
+        if self._redis_client is not None:
+            try:
+                was_set = await self._redis_client.set(dedup_key, "1", nx=True, ex=eff_ttl)
+                return bool(was_set), "redis_nx"
+            except Exception:
+                pass
+
+        now_mono = time.monotonic()
+        # Evict expired entries
+        expired = [k for k, exp in self._memory_dedup.items() if exp <= now_mono]
+        for k in expired:
+            self._memory_dedup.pop(k, None)
+
+        if dedup_key in self._memory_dedup and self._memory_dedup[dedup_key] > now_mono:
+            return False, "memory_ttl"
+
+        self._memory_dedup[dedup_key] = now_mono + eff_ttl
+        return True, "memory_ttl"
 
     async def send_incident_alert(
         self,
@@ -163,23 +207,45 @@ class SlackNotifier:
         affected_services: list[str],
         impact_score: float,
         webhook_url: str | None = None,
+        force: bool = False,
     ) -> dict[str, Any]:
-        """Validate target URL against SSRF, format payload, and dispatch to Slack/Discord."""
+        """Enforce idempotency lock, validate target URL against SSRF, and dispatch to Slack/Discord."""
         target_url = (webhook_url or self.default_webhook_url or "").strip()
         payload = self._build_slack_payload(
             incident_id, root_cause_service, root_cause_type, confidence, affected_services, impact_score
         )
+        dedup_key = f"alert:dedup:{incident_id}"
 
-        if not target_url:
+        # Validate SSRF first if a target_url is supplied so invalid URLs always raise WebhookSecurityError
+        validated_url: str | None = None
+        if target_url:
+            validated_url = validate_webhook_url(target_url, resolve_dns=self.resolve_dns)
+
+        if not force:
+            acquired, dedup_backend = await self.acquire_idempotency_lock(incident_id)
+            if not acquired:
+                return {
+                    "status": "deduplicated",
+                    "incident_id": incident_id,
+                    "idempotency_key": dedup_key,
+                    "dedup_backend": dedup_backend,
+                    "cooldown_ttl_seconds": self.dedup_ttl_seconds,
+                    "message": f"Duplicate alert suppressed within {self.dedup_ttl_seconds}s idempotency window.",
+                    "ssrf_verified": True,
+                    "payload": payload,
+                }
+        else:
+            dedup_backend = "bypassed"
+
+        if not validated_url:
             return {
                 "status": "simulated",
                 "message": "No webhook URL configured. Simulated dispatch successful.",
+                "idempotency_key": dedup_key,
+                "dedup_backend": dedup_backend,
                 "ssrf_verified": True,
                 "payload": payload,
             }
-
-        # Enforce multi-layer SSRF validation before opening any network socket
-        validated_url = validate_webhook_url(target_url, resolve_dns=self.resolve_dns)
 
         try:
             # follow_redirects=False prevents 301/302 redirect bypass to internal metadata IPs
@@ -191,20 +257,25 @@ class SlackNotifier:
                     "status": "delivered" if delivered else "failed",
                     "http_status": res.status_code,
                     "delivery_ack": "accepted" if delivered else "rejected_by_upstream",
+                    "idempotency_key": dedup_key,
+                    "dedup_backend": dedup_backend,
                     "ssrf_verified": True,
                 }
         except httpx.TimeoutException:
             return {
                 "status": "error",
                 "error": "Upstream webhook timed out after 5.0s",
+                "idempotency_key": dedup_key,
                 "ssrf_verified": True,
             }
         except httpx.RequestError:
             return {
                 "status": "error",
                 "error": "Upstream webhook network transport error",
+                "idempotency_key": dedup_key,
                 "ssrf_verified": True,
             }
+
 
     def _build_slack_payload(
         self,

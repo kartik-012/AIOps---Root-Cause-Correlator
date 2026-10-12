@@ -69,6 +69,9 @@ class ServiceDependency(Base):
     to_service_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("services.id", ondelete="CASCADE"), nullable=False
     )
+    last_seen_at: Mapped[datetime | None] = mapped_column(
+        nullable=True, default=lambda: datetime.now(timezone.utc)
+    )
 
     __table_args__ = (
         UniqueConstraint("from_service_id", "to_service_id"),
@@ -302,3 +305,34 @@ class RunbookSuggestion(Base):
     )
 
     incident: Mapped["Incident"] = relationship(back_populates="runbook_suggestions")
+
+
+# ---------------------------------------------------------------------------
+# 10. deployment_events — Git SHA / Config Deploy Change-Event Overlay
+# ---------------------------------------------------------------------------
+
+class DeploymentEvent(Base):
+    """Records a code deployment (Git SHA) or configuration rollout for a service."""
+
+    __tablename__ = "deployment_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid4
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("services.id", ondelete="CASCADE"), nullable=False
+    )
+    git_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    config_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    deployed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    environment: Mapped[str] = mapped_column(String(50), nullable=False, default="production")
+    deployed_at: Mapped[datetime] = mapped_column(
+        nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("idx_deployment_service_time", "service_id", deployed_at.desc()),
+    )
+
+    service: Mapped["Service"] = relationship()
+

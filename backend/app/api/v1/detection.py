@@ -3,7 +3,9 @@
 from datetime import datetime, timezone, timedelta
 import uuid
 from fastapi import APIRouter, Query
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.dependencies import DBSession
 from app.engines.detection_engine import DetectionEngine, get_shared_detection_engine
@@ -18,12 +20,14 @@ def get_detection_engine() -> DetectionEngine:
     return get_shared_detection_engine()
 
 
-@router.post("/detection/ingest", response_model=MetricIngestResponse)
-async def ingest_metric(payload: MetricIngest, db: DBSession):
-    """Ingest a raw telemetry data point, update EWMA baseline, and detect anomalies."""
-    ts = payload.recorded_at or datetime.now(timezone.utc)
-
-    # 1. Record raw metric in DB
+def _persist_metric_and_anomaly_sync(
+    db: Session,
+    payload: MetricIngest,
+    ts: datetime,
+    is_anomaly: bool,
+    z_score: float,
+    severity: str,
+) -> tuple[uuid.UUID | None, str]:
     raw = MetricRaw(
         service_id=payload.service_id,
         metric_type=payload.metric_type,
@@ -32,7 +36,35 @@ async def ingest_metric(payload: MetricIngest, db: DBSession):
     )
     db.add(raw)
 
-    # 2. Process through detection engine
+    anomaly_id: uuid.UUID | None = None
+    sname = str(payload.service_id)
+    if is_anomaly:
+        anomaly = Anomaly(
+            service_id=payload.service_id,
+            metric_type=payload.metric_type,
+            z_score=z_score,
+            severity=severity,
+            detected_at=ts,
+        )
+        db.add(anomaly)
+        db.commit()
+        db.refresh(anomaly)
+        anomaly_id = anomaly.id
+
+        svc = db.scalar(select(Service).where(Service.id == payload.service_id))
+        if svc:
+            sname = svc.name
+    else:
+        db.commit()
+
+    return anomaly_id, sname
+
+
+@router.post("/detection/ingest", response_model=MetricIngestResponse)
+async def ingest_metric(payload: MetricIngest, db: DBSession):
+    """Ingest a raw telemetry data point, update EWMA baseline, and detect anomalies without blocking event loop."""
+    ts = payload.recorded_at or datetime.now(timezone.utc)
+
     engine = get_detection_engine()
     res = engine.process_metric(
         service_id=str(payload.service_id),
@@ -41,25 +73,17 @@ async def ingest_metric(payload: MetricIngest, db: DBSession):
         timestamp=ts,
     )
 
-    anomaly_id = None
+    anomaly_id, sname = await run_in_threadpool(
+        _persist_metric_and_anomaly_sync,
+        db,
+        payload,
+        ts,
+        res.is_anomaly,
+        res.z_score,
+        res.severity,
+    )
+
     if res.is_anomaly:
-        anomaly = Anomaly(
-            service_id=payload.service_id,
-            metric_type=payload.metric_type,
-            z_score=res.z_score,
-            severity=res.severity,
-            detected_at=ts,
-        )
-        db.add(anomaly)
-        db.commit()
-        db.refresh(anomaly)
-        anomaly_id = anomaly.id
-
-        # Lookup service name for WebSocket notification
-        svc = db.scalar(select(Service).where(Service.id == payload.service_id))
-        sname = svc.name if svc else str(payload.service_id)
-
-        # Broadcast live WebSocket event
         await broadcast_event({
             "type": "anomaly_detected",
             "service_id": str(payload.service_id),
@@ -70,8 +94,6 @@ async def ingest_metric(payload: MetricIngest, db: DBSession):
             "severity": res.severity,
             "timestamp": ts.isoformat(),
         })
-    else:
-        db.commit()
 
     return MetricIngestResponse(
         status="recorded",
@@ -80,6 +102,7 @@ async def ingest_metric(payload: MetricIngest, db: DBSession):
         z_score=res.z_score,
         severity=res.severity if res.is_anomaly else None,
     )
+
 
 
 @router.get("/detection/anomalies", response_model=list[AnomalyOut])

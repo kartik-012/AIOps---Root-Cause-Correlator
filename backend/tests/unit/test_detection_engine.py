@@ -84,16 +84,82 @@ def test_detection_engine_baseline_poisoning_guard_preserves_consecutive_spike_d
 
 
 def test_detection_engine_drift_adaptation():
-    """Gradual organic growth should adapt the baseline without creating persistent anomalies."""
+    """Gradual organic growth (within 1.5 sigma per step) should adapt the baseline without creating persistent anomalies."""
     engine = DetectionEngine(alpha=0.3, base_threshold=3.0, min_samples=3)
     now = datetime.now(timezone.utc)
 
-    # 20 gradual increments (each step is small enough that z < 4.0)
-    for val in range(100, 200, 5):
-        engine.process_metric("auth-svc", "cpu_usage", float(val), now)
+    # Burn in around 100 +/- 3 so initial Welford std is ~3.0, then drift smoothly by +2.5 per step
+    for b in (97.0, 103.0, 100.0):
+        engine.process_metric("auth-svc", "cpu_usage", b, now)
+    for step in range(1, 25):
+        engine.process_metric("auth-svc", "cpu_usage", 100.0 + step * 2.5, now)
 
     state = engine._states[("auth-svc", "cpu_usage")]
-    assert state.mean > 160.0
+    assert state.mean > 140.0
+
+
+def test_welford_burn_in_variance_adapts_across_sub_unit_and_high_scale_metrics():
+    """Verify Step 6.1: Welford burn-in avoids cold-start false negatives on error_rate (0.01)
+    and avoids false positives on normal latency_ms (200ms -> 205ms) jitter.
+    """
+    engine = DetectionEngine(alpha=0.3, base_threshold=2.0, min_samples=3)
+    now = datetime.now(timezone.utc)
+
+    # 1. Sub-unit metric: error_rate ~ 0.01 -> 50% error rate (0.50) must be flagged as critical anomaly
+    for val in (0.010, 0.012, 0.008):
+        engine.process_metric("payment-svc", "error_rate", val, now)
+    err_spike = engine.process_metric("payment-svc", "error_rate", 0.50, now)
+    assert err_spike.is_anomaly is True
+    assert err_spike.severity == "critical"
+
+    # 2. High-scale metric: latency_ms ~ 200ms +/- 5ms -> sample 4 at 205ms must NOT trigger a false positive
+    for val in (195.0, 205.0, 200.0):
+        engine.process_metric("api-gateway", "latency_ms", val, now)
+    normal_jitter = engine.process_metric("api-gateway", "latency_ms", 205.0, now)
+    assert normal_jitter.is_anomaly is False
+    assert abs(normal_jitter.z_score) < 2.0
+
+
+def test_sustained_8_sample_outlier_burst_does_not_contaminate_ewma_baseline():
+    """Verify Step 6.1: 8 consecutive anomalous samples (|z| >= threshold) do not inflate sigma
+    such that anomalies fall below z = 2.0.
+    """
+    engine = DetectionEngine(alpha=0.3, base_threshold=2.0, min_samples=3)
+    now = datetime.now(timezone.utc)
+
+    for val in (50.0, 51.0, 49.0):
+        engine.process_metric("order-svc", "latency_ms", val, now)
+
+    # Stream 8 consecutive moderate-to-high anomaly samples
+    results = [
+        engine.process_metric("order-svc", "latency_ms", 62.0, now)
+        for _ in range(8)
+    ]
+    assert all(r.is_anomaly is True for r in results)
+    assert all(r.winsorized is True for r in results)
+    assert results[-1].z_score >= 2.0
+
+
+def test_winsorized_residual_clipping_bounds_variance_under_extreme_1000_sigma_spike():
+    """Verify Differentiator #1: Without Winsorized residual clipping, a 1000-sigma spike (50 -> 5000)
+    inflates variance quadratically (d^2 = 24,502,500) even with small alpha, blinding the detector
+    to subsequent moderate spikes (e.g., 65.0). With Winsorized clipping, the moderate spike is still caught.
+    """
+    engine = DetectionEngine(alpha=0.3, base_threshold=2.0, min_samples=3)
+    now = datetime.now(timezone.utc)
+
+    for val in (49.0, 51.0, 50.0):
+        engine.process_metric("catalog-svc", "latency_ms", val, now)
+
+    extreme_spike = engine.process_metric("catalog-svc", "latency_ms", 5000.0, now)
+    assert extreme_spike.is_anomaly is True
+    assert extreme_spike.winsorized is True
+
+    # Immediately follow with a moderate anomaly (65.0 vs baseline ~50.0)
+    follow_up = engine.process_metric("catalog-svc", "latency_ms", 65.0, now)
+    assert follow_up.is_anomaly is True
+    assert follow_up.z_score >= 4.0
+
 
 
 def test_detection_engine_redis_persistence_roundtrip():
@@ -123,7 +189,6 @@ def test_detection_engine_redis_persistence_roundtrip():
     assert res.z_score > 4.0
 
 
-
 def test_unified_detection_engine_singleton_across_rest_and_kafka():
     """Verify REST API and Kafka TelemetryConsumer reference the exact same DetectionEngine instance."""
     rest_engine = get_detection_engine()
@@ -150,3 +215,4 @@ def test_celery_tasks_registered_and_executable():
     )
     assert out["grounding_verified"] is True
     assert "payment-service" in out["markdown"]
+

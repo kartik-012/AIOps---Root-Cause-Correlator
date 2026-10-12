@@ -10,6 +10,7 @@ cosine distance (`<=>`) nearest-neighbor queries.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 import hashlib
 import math
 from typing import Any
@@ -52,6 +53,28 @@ def _deterministic_unit_coord(label: str, salt: str = "") -> float:
     return round(float(sign * mag), 6)
 
 
+def encode_cyclical_time(
+    hour_value: float,
+    day_of_week: float,
+    period_hours: float = 4.0,
+) -> tuple[float, float]:
+    """Project (hour, day_of_week) onto the unit circle (cos, sin) in [-1, 1]^2.
+
+    Supports both 4-bucket hour encoding (`period_hours=4.0`) and continuous 24-hour
+    timestamps (`period_hours=24.0`), ensuring boundary times such as 23:55 and 00:05
+    have cosine similarity ~1.0 rather than jumping across a linear discontinuity.
+    """
+    if period_hours == 24.0:
+        # Continuous 24-hour wraparound (e.g. 23:55 -> 23.917h wraps smoothly into 00:05 -> 0.083h)
+        angle = (float(hour_value) % 24.0) * (2.0 * math.pi / 24.0)
+    else:
+        angle = (
+            (float(hour_value) % period_hours) * (2.0 * math.pi / period_hours)
+            + (float(day_of_week) % 7.0) * (2.0 * math.pi / 7.0)
+        )
+    return round(math.cos(angle), 6), round(math.sin(angle), 6)
+
+
 def build_signature(
     hour_bucket: float,
     day_of_week: float,
@@ -60,6 +83,7 @@ def build_signature(
     severity_z: float,
     depth: float = 1.0,
     speed: float = 10.0,
+    period_hours: float = 4.0,
 ) -> list[float]:
     """Build a deterministic, PYTHONHASHSEED-invariant 7-dimensional signature vector in [-1, 1]^7.
 
@@ -70,10 +94,8 @@ def build_signature(
     patterns have near-zero or negative cosine similarity while recurring benign patterns
     cluster above 0.90.
     """
-    # Dim 0 & 1: Cyclical temporal encoding (maps hour_bucket 0..3 and day_of_week 0..6 onto [-1, 1])
-    hour_angle = (float(hour_bucket) % 4.0) * (math.pi / 2.0) + (float(day_of_week) % 7.0) * (2.0 * math.pi / 7.0)
-    temporal_cos = round(math.cos(hour_angle), 6)
-    temporal_sin = round(math.sin(hour_angle), 6)
+    # Dim 0 & 1: Cyclical temporal encoding onto the unit circle [-1, 1]^2
+    temporal_cos, temporal_sin = encode_cyclical_time(hour_bucket, day_of_week, period_hours=period_hours)
 
     # Dim 2 & 3: Deterministic SHA-256 bipolar coordinates for (service_id, metric_type)
     srv_coord = _deterministic_unit_coord(str(service_id), salt="svc")
@@ -100,6 +122,33 @@ def build_signature(
         depth_centered,
         speed_centered,
     ]
+
+
+def build_signature_from_timestamp(
+    timestamp: datetime,
+    service_id: str,
+    metric_type: str,
+    severity_z: float,
+    depth: float = 1.0,
+    speed: float = 10.0,
+) -> list[float]:
+    """Build a 7D signature using continuous 24-hour cyclical time encoding from a `datetime`.
+
+    Guarantees that recurring midnight jobs (e.g., 23:55 vs 00:05) produce near-identical
+    unit-circle coordinates `(cos(2*pi*h/24), sin(2*pi*h/24))` with cosine similarity > 0.99.
+    """
+    fractional_hour = timestamp.hour + (timestamp.minute / 60.0) + (timestamp.second / 3600.0)
+    return build_signature(
+        hour_bucket=fractional_hour,
+        day_of_week=float(timestamp.weekday()),
+        service_id=service_id,
+        metric_type=metric_type,
+        severity_z=severity_z,
+        depth=depth,
+        speed=speed,
+        period_hours=24.0,
+    )
+
 
 
 class SuppressionEngine:
@@ -151,8 +200,11 @@ class SuppressionEngine:
         self,
         db: Session,
         candidate_signature: list[float],
+        service_id: str | None = None,
+        metric_type: str | None = None,
     ) -> SuppressionDecision | None:
-        """Execute a native PostgreSQL `pgvector` cosine distance (`<=>`) query against `incidents`.
+        """Execute a native PostgreSQL `pgvector` cosine distance (`<=>`) query against `incidents`,
+        with optional exact metadata filtering on `(root_cause_service_id, root_cause_type)`.
 
         Returns a `SuppressionDecision` if the database query succeeds and finds false-positive
         records; returns `None` if no DB false positives exist or if running without pgvector.
@@ -167,15 +219,25 @@ class SuppressionEngine:
             )
 
         try:
+            import uuid
             from app.models.db_models import Incident
 
             distance_col = Incident.anomaly_signature.cosine_distance(candidate_signature).label("cos_dist")
+            conditions = [
+                Incident.was_false_positive.is_(True),
+                Incident.anomaly_signature.is_not(None),
+            ]
+            if service_id:
+                try:
+                    conditions.append(Incident.root_cause_service_id == uuid.UUID(str(service_id)))
+                except ValueError:
+                    pass
+            if metric_type:
+                conditions.append(Incident.root_cause_type == str(metric_type))
+
             stmt = (
                 select(Incident, distance_col)
-                .where(
-                    Incident.was_false_positive.is_(True),
-                    Incident.anomaly_signature.is_not(None),
-                )
+                .where(*conditions)
                 .order_by(distance_col.asc())
                 .limit(1)
             )
@@ -208,8 +270,12 @@ class SuppressionEngine:
         self,
         candidate_signature: list[float],
         db: Session | None = None,
+        service_id: str | None = None,
+        metric_type: str | None = None,
     ) -> SuppressionDecision:
-        """Check candidate 7D signature via PostgreSQL pgvector first (if db provided), then in-memory."""
+        """Check candidate 7D signature via PostgreSQL pgvector first (if db provided), then in-memory,
+        applying exact `(service_id, metric_type)` metadata filtering when specified.
+        """
         if len(candidate_signature) != 7:
             return SuppressionDecision(
                 should_suppress=False,
@@ -219,7 +285,12 @@ class SuppressionEngine:
             )
 
         if db is not None:
-            pg_decision = self.evaluate_pgvector(db, candidate_signature)
+            pg_decision = self.evaluate_pgvector(
+                db,
+                candidate_signature,
+                service_id=service_id,
+                metric_type=metric_type,
+            )
             if pg_decision is not None:
                 return pg_decision
 
@@ -235,10 +306,23 @@ class SuppressionEngine:
         best_match: FalsePositiveTemplate | None = None
 
         for template in self._fp_patterns:
+            if service_id and template.service_id and template.service_id != service_id:
+                continue
+            if metric_type and template.metric_type and template.metric_type != metric_type:
+                continue
             sim = self.cosine_similarity(candidate_signature, template.signature)
             if sim > best_score:
                 best_score = sim
                 best_match = template
+
+        if best_match is None:
+            return SuppressionDecision(
+                should_suppress=False,
+                similarity_score=0.0,
+                matched_incident_id=None,
+                reason="No historical false-positive templates matched metadata filter",
+                evaluation_backend="in_memory",
+            )
 
         should_suppress = best_score >= self.similarity_threshold
 
@@ -251,3 +335,103 @@ class SuppressionEngine:
             + (f" (matched template {best_match.tag})" if best_match else ""),
             evaluation_backend="in_memory",
         )
+
+    def retrieve_similar_incidents(
+        self,
+        candidate_signature: list[float],
+        db: Session | None = None,
+        top_k: int = 5,
+        false_positives_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Retrieve Top-K nearest historical incidents via PostgreSQL `pgvector` `<=>` cosine distance,
+        falling back to SQLite/in-memory cosine similarity ranking when pgvector is unavailable.
+        """
+        if len(candidate_signature) != 7 or top_k <= 0:
+            return []
+
+        if db is not None:
+            bind = getattr(db, "bind", None)
+            dialect_name = getattr(getattr(bind, "dialect", None), "name", "postgresql")
+
+            # 1. Attempt native PostgreSQL pgvector HNSW cosine_distance query
+            if dialect_name != "sqlite":
+                try:
+                    from app.models.db_models import Incident
+
+                    distance_col = Incident.anomaly_signature.cosine_distance(candidate_signature).label("cos_dist")
+                    conditions = [Incident.anomaly_signature.is_not(None)]
+                    if false_positives_only:
+                        conditions.append(Incident.was_false_positive.is_(True))
+
+                    stmt = (
+                        select(Incident, distance_col)
+                        .where(*conditions)
+                        .order_by(distance_col.asc())
+                        .limit(top_k)
+                    )
+                    rows = db.execute(stmt).all()
+                    if rows:
+                        results: list[dict[str, Any]] = []
+                        for inc, dist in rows:
+                            sim = round(float(np.clip(1.0 - float(dist), -1.0, 1.0)), 4)
+                            results.append({
+                                "incident_id": str(inc.id),
+                                "similarity": sim,
+                                "root_cause_type": inc.root_cause_type,
+                                "was_false_positive": bool(inc.was_false_positive),
+                                "learned_pattern_tag": inc.learned_pattern_tag,
+                                "backend": "pgvector_sql",
+                            })
+                        return results
+                except Exception:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+
+            # 2. Fallback: fetch Incident rows from DB (e.g. SQLite) and rank in-memory by cosine_similarity
+            try:
+                from app.models.db_models import Incident
+
+                conditions = [Incident.anomaly_signature.is_not(None)]
+                if false_positives_only:
+                    conditions.append(Incident.was_false_positive.is_(True))
+                inc_rows = db.scalars(select(Incident).where(*conditions)).all()
+                scored: list[dict[str, Any]] = []
+                for inc in inc_rows:
+                    raw_sig = inc.anomaly_signature
+                    if raw_sig is not None and len(raw_sig) == 7:
+                        sim = self.cosine_similarity(
+                            candidate_signature,
+                            [float(x) for x in raw_sig],
+                        )
+                        scored.append({
+                            "incident_id": str(inc.id),
+                            "similarity": sim,
+                            "root_cause_type": inc.root_cause_type,
+                            "was_false_positive": bool(inc.was_false_positive),
+                            "learned_pattern_tag": inc.learned_pattern_tag,
+                            "backend": "db_cosine_fallback",
+                        })
+                if scored:
+                    scored.sort(key=lambda r: r["similarity"], reverse=True)
+                    return scored[:top_k]
+            except Exception:
+                pass
+
+        # 3. Final fallback: in-memory registered false positive templates
+        mem_scored = [
+            {
+                "incident_id": tpl.incident_id,
+                "similarity": self.cosine_similarity(candidate_signature, tpl.signature),
+                "root_cause_type": tpl.metric_type,
+                "was_false_positive": True,
+                "learned_pattern_tag": tpl.tag,
+                "backend": "in_memory",
+            }
+            for tpl in self._fp_patterns
+        ]
+        mem_scored.sort(key=lambda r: r["similarity"], reverse=True)
+        return mem_scored[:top_k]
+
+

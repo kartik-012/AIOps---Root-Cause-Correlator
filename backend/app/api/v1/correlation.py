@@ -11,16 +11,31 @@ import uuid
 
 from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.dependencies import DBSession
 from app.graph.dependency_graph import DependencyGraph
-from app.engines.correlation_engine import CorrelationEngine, AnomalyEvent, CorrelatedIncident
+from app.engines.correlation_engine import (
+    CorrelationEngine,
+    AnomalyEvent,
+    ChangeEvent,
+    CorrelatedIncident,
+    compute_lagged_cross_correlation,
+)
 from app.engines.verification_engine import VerificationEngine
 from app.engines.remediation_engine import get_remediation_engine
-from app.models.db_models import Service, ServiceDependency, Anomaly, Incident, IncidentAffectedService
+from app.models.db_models import (
+    Service,
+    ServiceDependency,
+    Anomaly,
+    Incident,
+    IncidentAffectedService,
+    MetricRaw,
+    DeploymentEvent,
+)
 from app.models.schemas import (
     CorrelationRunResponse,
     IncidentSummary,
@@ -36,23 +51,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _build_db_dependency_graph(db: Session) -> DependencyGraph:
-    """Build NetworkX dependency graph from database tables."""
-    try:
-        services = db.scalars(select(Service)).all()
-        deps = db.scalars(select(ServiceDependency)).all()
+class LaggedCorrelationRequest(BaseModel):
+    cause_service_id: str = "callee"
+    effect_service_id: str = "caller"
+    series_cause: list[float] = Field(default_factory=list)
+    series_effect: list[float] = Field(default_factory=list)
+    max_lag: int = Field(default=5, ge=1, le=30)
+    alignment_threshold: float = Field(default=0.65, ge=0.1, le=1.0)
 
-        nodes = [{"id": str(s.id), "name": s.name, "revenue_weight": s.revenue_weight} for s in services]
-        edges = [{"from": str(d.from_service_id), "to": str(d.to_service_id)} for d in deps]
-        if nodes:
-            return DependencyGraph.from_nodes_and_edges(nodes, edges)
+
+def _build_db_dependency_graph(db: Session) -> DependencyGraph:
+    """Build NetworkX dependency graph from database tables in a single SQL OUTER JOIN query."""
+    try:
+        rows = db.execute(
+            select(Service, ServiceDependency)
+            .outerjoin(ServiceDependency, Service.id == ServiceDependency.from_service_id)
+        ).all()
+
+        nodes_by_id: dict[str, dict] = {}
+        edges: list[dict] = []
+        for svc, dep in rows:
+            sid = str(svc.id)
+            if sid not in nodes_by_id:
+                nodes_by_id[sid] = {"id": sid, "name": svc.name, "revenue_weight": svc.revenue_weight}
+            if dep is not None:
+                edges.append({"from": str(dep.from_service_id), "to": str(dep.to_service_id)})
+
+        if nodes_by_id:
+            return DependencyGraph.from_nodes_and_edges(list(nodes_by_id.values()), edges)
     except SQLAlchemyError as exc:
         logger.warning("Failed to build dependency graph from DB: %s", exc)
     return DependencyGraph()
 
 
-def _fetch_unclustered_and_correlate_sync(db: Session) -> list[CorrelatedIncident] | None:
-    """Fetch unclustered anomalies and run graph correlation synchronously in a worker thread."""
+def _fetch_unclustered_and_correlate_sync(
+    db: Session,
+    include_metric_streams: bool = False,
+) -> list[CorrelatedIncident] | None:
+    """Fetch unclustered anomalies and run graph correlation synchronously in <= 3 SQL queries."""
     try:
         unclustered_anomalies = db.scalars(
             select(Anomaly).where(Anomaly.incident_id.is_(None)).order_by(Anomaly.detected_at.asc())
@@ -78,7 +114,52 @@ def _fetch_unclustered_and_correlate_sync(db: Session) -> list[CorrelatedInciden
         )
         for a in unclustered_anomalies
     ]
-    return engine.correlate(engine_anomalies)
+
+    metric_streams: dict[str, list[float]] = {}
+    change_events: list[ChangeEvent] = []
+    try:
+        svc_uuids = list({a.service_id for a in unclustered_anomalies if a.service_id is not None})
+        if svc_uuids:
+            deploy_rows = db.scalars(
+                select(DeploymentEvent)
+                .where(DeploymentEvent.service_id.in_(svc_uuids))
+                .order_by(DeploymentEvent.deployed_at.desc())
+            ).all()
+            for d_row in deploy_rows:
+                change_events.append(
+                    ChangeEvent(
+                        id=str(d_row.id),
+                        service_id=str(d_row.service_id),
+                        git_sha=d_row.git_sha,
+                        config_version=d_row.config_version,
+                        deployed_by=d_row.deployed_by,
+                        environment=d_row.environment,
+                        deployed_at=d_row.deployed_at,
+                    )
+                )
+
+            if include_metric_streams:
+                raw_rows = db.scalars(
+                    select(MetricRaw)
+                    .where(MetricRaw.service_id.in_(svc_uuids))
+                    .order_by(MetricRaw.recorded_at.asc())
+                ).all()
+                for r in raw_rows:
+                    sid_str = str(r.service_id)
+                    metric_streams.setdefault(sid_str, []).append(float(r.value))
+                for sid_str in list(metric_streams.keys()):
+                    metric_streams[sid_str] = metric_streams[sid_str][-50:]
+    except Exception as exc:
+        logger.debug("Optional change_events/metric_streams lookup skipped: %s", exc)
+
+    return engine.correlate(
+        engine_anomalies,
+        metric_streams=metric_streams if metric_streams else None,
+        change_events=change_events if change_events else None,
+    )
+
+
+
 
 
 def _persist_correlated_incident_sync(
@@ -359,3 +440,49 @@ def get_incident(incident_id: uuid.UUID, db: DBSession):
         ],
         anomalies=[],
     )
+
+
+def _lookup_metric_series_sync(db: Session, service_id_str: str) -> list[float]:
+    """Fetch recent raw metric values for a service UUID from MetricRaw."""
+    try:
+        svc_uuid = uuid.UUID(service_id_str)
+        rows = db.scalars(
+            select(MetricRaw)
+            .where(MetricRaw.service_id == svc_uuid)
+            .order_by(MetricRaw.recorded_at.asc())
+        ).all()
+        return [float(r.value) for r in rows[-50:]]
+    except Exception:
+        return []
+
+
+@router.post("/correlation/lagged-cross-correlation")
+async def run_lagged_cross_correlation(payload: LaggedCorrelationRequest, db: DBSession):
+    """Compute tau-shifted Pearson r(tau) and Spearman rho(tau) cross-correlation across lags [-max_lag, +max_lag]."""
+    series_cause = list(payload.series_cause)
+    series_effect = list(payload.series_effect)
+
+    if not series_cause:
+        series_cause = await run_in_threadpool(_lookup_metric_series_sync, db, payload.cause_service_id)
+    if not series_effect:
+        series_effect = await run_in_threadpool(_lookup_metric_series_sync, db, payload.effect_service_id)
+
+    res = compute_lagged_cross_correlation(
+        series_cause=series_cause,
+        series_effect=series_effect,
+        max_lag=payload.max_lag,
+        cause_service_id=payload.cause_service_id,
+        effect_service_id=payload.effect_service_id,
+        alignment_threshold=payload.alignment_threshold,
+    )
+    return {
+        "cause_service_id": res.cause_service_id,
+        "effect_service_id": res.effect_service_id,
+        "optimal_lag_steps": res.optimal_lag_steps,
+        "max_pearson_r": res.max_pearson_r,
+        "max_spearman_rho": res.max_spearman_rho,
+        "combined_score": res.combined_score,
+        "is_causally_aligned": res.is_causally_aligned,
+        "lag_profile": {str(k): v for k, v in res.lag_profile.items()},
+    }
+

@@ -56,15 +56,49 @@ def check_suppression(payload: SuppressionCheckRequest, db: DBSession):
     )
 
 
+from pydantic import BaseModel, Field
+from app.engines.suppression_engine import SuppressionEngine, build_signature_from_timestamp
+
+
+class SimilarIncidentsRequest(BaseModel):
+    anomaly_signature: list[float] = Field(..., min_length=7, max_length=7)
+    top_k: int = Field(default=5, ge=1, le=50)
+    false_positives_only: bool = False
+
+
+@router.post("/suppression/similar")
+def retrieve_similar_historical_incidents(payload: SimilarIncidentsRequest, db: DBSession):
+    """Retrieve Top-K nearest historical incidents via pgvector cosine distance (`<=>`)."""
+    engine = get_suppression_engine(db)
+    matches = engine.retrieve_similar_incidents(
+        candidate_signature=payload.anomaly_signature,
+        db=db,
+        top_k=payload.top_k,
+        false_positives_only=payload.false_positives_only,
+    )
+    return {
+        "count": len(matches),
+        "matches": matches,
+    }
+
+
 @router.post("/suppression/mark-false-positive/{incident_id}", response_model=MarkFalsePositiveResponse)
 def mark_false_positive(incident_id: uuid.UUID, db: DBSession):
-    """Mark an incident as a false positive so future matching patterns are suppressed."""
+    """Mark an incident as a false positive (computing a cyclical 7D signature if missing) so future patterns are suppressed."""
     inc = db.scalar(select(Incident).where(Incident.id == incident_id))
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
 
     inc.was_false_positive = True
     inc.learned_pattern_tag = inc.learned_pattern_tag or "user_labeled_false_positive"
+    if inc.anomaly_signature is None:
+        ts = inc.timestamp_start or datetime.now(timezone.utc)
+        inc.anomaly_signature = build_signature_from_timestamp(
+            timestamp=ts,
+            service_id=str(inc.root_cause_service_id or "unknown-service"),
+            metric_type=inc.root_cause_type or "latency_ms",
+            severity_z=3.5,
+        )
     db.commit()
 
     # Re-sync in-memory engine
@@ -74,3 +108,4 @@ def mark_false_positive(incident_id: uuid.UUID, db: DBSession):
         status="marked",
         incident_id=incident_id,
     )
+

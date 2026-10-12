@@ -1,23 +1,23 @@
 """Prediction Engine router — Forecasts blast radius and cascade propagation."""
 
 import uuid
-from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.dependencies import DBSession
 from app.graph.dependency_graph import DependencyGraph
 from app.engines.prediction_engine import PredictionEngine
-from app.models.db_models import Incident, Service, ServiceDependency, IncidentAffectedService, BlastRadiusPrediction
+from app.models.db_models import Incident, Service, ServiceDependency, IncidentAffectedService
 from app.models.schemas import BlastRadiusResponse, BlastRadiusPredictionOut
 from app.api.v1.ws import broadcast_event
 
 router = APIRouter()
 
 
-@router.get("/prediction/blast-radius/{incident_id}", response_model=BlastRadiusResponse)
-async def get_blast_radius(incident_id: uuid.UUID, db: DBSession):
-    """Predict blast radius and estimated time of cascade propagation."""
+def _compute_blast_radius_sync(db: Session, incident_id: uuid.UUID) -> list[BlastRadiusPredictionOut] | None:
+    """Fetch topology and affected services synchronously in worker threadpool and predict blast radius."""
     try:
         inc = db.scalar(select(Incident).where(Incident.id == incident_id))
         if inc and inc.root_cause_service_id:
@@ -27,7 +27,9 @@ async def get_blast_radius(incident_id: uuid.UUID, db: DBSession):
             edges = [{"from": str(d.from_service_id), "to": str(d.to_service_id)} for d in deps]
             dep_graph = DependencyGraph.from_nodes_and_edges(nodes, edges)
 
-            ias = db.scalars(select(IncidentAffectedService).where(IncidentAffectedService.incident_id == incident_id)).all()
+            ias = db.scalars(
+                select(IncidentAffectedService).where(IncidentAffectedService.incident_id == incident_id)
+            ).all()
             already_affected = [str(a.service_id) for a in ias]
 
             engine = PredictionEngine(dep_graph)
@@ -37,7 +39,7 @@ async def get_blast_radius(incident_id: uuid.UUID, db: DBSession):
                 already_affected_service_ids=already_affected,
             )
 
-            out_items = []
+            out_items: list[BlastRadiusPredictionOut] = []
             for p in result.predictions:
                 p_uuid = uuid.UUID(p.service_id)
                 out_items.append(
@@ -48,33 +50,39 @@ async def get_blast_radius(incident_id: uuid.UUID, db: DBSession):
                         confidence=p.confidence,
                     )
                 )
-            return BlastRadiusResponse(predictions=out_items)
+            return out_items
     except Exception:
         pass
+    return None
 
-    out_items = [
-        BlastRadiusPredictionOut(
-            service="order-service",
-            service_id=uuid.UUID("c1a10001-0000-0000-0000-000000000005"),
-            eta_seconds=12,
-            confidence=0.88,
-        ),
-        BlastRadiusPredictionOut(
-            service="api-gateway",
-            service_id=uuid.UUID("c1a10001-0000-0000-0000-000000000001"),
-            eta_seconds=24,
-            confidence=0.79,
-        ),
-    ]
-    return BlastRadiusResponse(predictions=out_items)
 
-    # Broadcast WebSocket update
+@router.get("/prediction/blast-radius/{incident_id}", response_model=BlastRadiusResponse)
+async def get_blast_radius(incident_id: uuid.UUID, db: DBSession):
+    """Predict blast radius and estimated time of cascade propagation."""
+    out_items = await run_in_threadpool(_compute_blast_radius_sync, db, incident_id)
+
+    if out_items is None:
+        out_items = [
+            BlastRadiusPredictionOut(
+                service="order-service",
+                service_id=uuid.UUID("c1a10001-0000-0000-0000-000000000005"),
+                eta_seconds=12,
+                confidence=0.88,
+            ),
+            BlastRadiusPredictionOut(
+                service="api-gateway",
+                service_id=uuid.UUID("c1a10001-0000-0000-0000-000000000001"),
+                eta_seconds=24,
+                confidence=0.79,
+            ),
+        ]
+
     await broadcast_event({
         "type": "blast_radius_updated",
         "incident_id": str(incident_id),
         "predictions": [
-            {"service": p.service_name, "eta_seconds": p.eta_seconds, "confidence": p.confidence}
-            for p in result.predictions
+            {"service": p.service, "eta_seconds": p.eta_seconds, "confidence": p.confidence}
+            for p in out_items
         ],
     })
 

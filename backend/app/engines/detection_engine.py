@@ -32,25 +32,39 @@ class AnomalyDetectionResult:
     ewma_mean: float
     ewma_std: float
     timestamp: datetime
+    burn_in_complete: bool = True
+    winsorized: bool = False
 
 
 class EWMAState:
-    """Tracks running EWMA mean and variance for a single metric stream."""
+    """Tracks running EWMA mean and variance for a single metric stream.
+
+    Uses Welford's online algorithm during the initial `min_samples` burn-in window
+    to compute a scale-accurate initial mean and sample variance (avoiding cold-start
+    false positives on high-magnitude metrics like `latency_ms=200` and false negatives
+    on sub-unit metrics like `error_rate=0.01`), followed by Huber/Winsorized residual
+    clipping and outlier-damped EWMA updates when `|z| >= poisoning_threshold`.
+    """
 
     def __init__(
         self,
         alpha: float = 0.3,
         min_samples: int = 3,
-        epsilon: float = 1e-4,
+        epsilon: float = 1e-6,
         guard_poisoning: bool = True,
+        poisoning_threshold: float = 2.0,
     ):
         self.alpha = alpha
         self.min_samples = min_samples
         self.epsilon = epsilon
         self.guard_poisoning = guard_poisoning
+        self.poisoning_threshold = poisoning_threshold
         self.mean: float | None = None
         self.variance: float | None = None
         self.count: int = 0
+        self._welford_mean: float = 0.0
+        self._welford_m2: float = 0.0
+        self.last_winsorized: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize EWMA state for Redis persistence."""
@@ -59,69 +73,117 @@ class EWMAState:
             "min_samples": self.min_samples,
             "epsilon": self.epsilon,
             "guard_poisoning": self.guard_poisoning,
+            "poisoning_threshold": self.poisoning_threshold,
             "mean": self.mean,
             "variance": self.variance,
             "count": self.count,
+            "welford_mean": self._welford_mean,
+            "welford_m2": self._welford_m2,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EWMAState:
-        """Restore EWMA state from Redis JSON payload."""
+        """Restore EWMA state from Redis hash or JSON payload."""
+        raw_guard = data.get("guard_poisoning", True)
+        if isinstance(raw_guard, str):
+            guard_val = raw_guard.lower() not in ("false", "0", "no")
+        else:
+            guard_val = bool(raw_guard)
+
         state = cls(
             alpha=float(data.get("alpha", 0.3)),
             min_samples=int(data.get("min_samples", 3)),
-            epsilon=float(data.get("epsilon", 1e-4)),
-            guard_poisoning=bool(data.get("guard_poisoning", True)),
+            epsilon=float(data.get("epsilon", 1e-6)),
+            guard_poisoning=guard_val,
+            poisoning_threshold=float(data.get("poisoning_threshold", 2.0)),
         )
-        state.mean = float(data["mean"]) if data.get("mean") is not None else None
-        state.variance = float(data["variance"]) if data.get("variance") is not None else None
+        state.mean = float(data["mean"]) if data.get("mean") not in (None, "None") else None
+        state.variance = float(data["variance"]) if data.get("variance") not in (None, "None") else None
         state.count = int(data.get("count", 0))
+        state._welford_mean = float(data.get("welford_mean", state.mean or 0.0))
+        state._welford_m2 = float(data.get("welford_m2", 0.0))
         return state
+
+    @staticmethod
+    def _scale_variance_floor(ref_value: float, epsilon: float) -> float:
+        """Compute a minimum variance floor proportional to metric scale to prevent zero-variance division."""
+        abs_v = abs(float(ref_value))
+        if abs_v <= 0.0:
+            return max(1e-4, epsilon)
+        if abs_v < 1.0:
+            # Sub-unit metrics (e.g. error_rate = 0.01 -> floor std = 0.0025)
+            return max((abs_v * 0.25) ** 2, epsilon)
+        # Larger metrics (e.g. latency_ms = 200 -> floor std = 2.0, i.e., 1% of scale)
+        return max((abs_v * 0.01) ** 2, epsilon)
 
     def update(self, value: float) -> tuple[float, float, float]:
         """Update EWMA with a new observation and return (mean, std, z_score).
 
-        Uses Welford-like exponential weighting with anomaly-poisoning damping:
-        mu_t = alpha_eff * x_t + (1 - alpha_eff) * mu_{t-1}
-        var_t = (1 - alpha_eff) * (var_{t-1} + alpha_eff * (x_t - mu_{t-1})^2)
+        1. During burn-in (`count <= min_samples`), accumulates Welford's online mean and M2
+           sample variance so initial variance adapts to the true metric scale (`0.01` vs `200.0`).
+        2. Post burn-in (`count > min_samples`), computes z-score against the prior baseline.
+           When `|z| >= poisoning_threshold`, applies Huber/Winsorized residual clipping
+           (`|d_winsorized| <= poisoning_threshold * prior_std`) and damps `alpha` so neither
+           sustained anomaly bursts nor extreme 1000-sigma spikes can contaminate the baseline.
         """
+        val = float(value)
         self.count += 1
+        self.last_winsorized = False
 
-        if self.mean is None:
-            self.mean = float(value)
-            # Scale-aware initial variance prior for sub-unit metrics (e.g., error_rate = 0.01)
-            abs_v = abs(float(value))
-            if 0.0 < abs_v < 1.0:
-                self.variance = max((abs_v * 0.25) ** 2, self.epsilon)
-            else:
-                self.variance = 1.0
-            z_score = 0.0
-            std = math.sqrt(self.variance)
-            return self.mean, std, z_score
+        if self.count == 1 or self.mean is None:
+            self._welford_mean = val
+            self._welford_m2 = 0.0
+            self.mean = val
+            self.variance = self._scale_variance_floor(val, self.epsilon)
+            return self.mean, math.sqrt(self.variance), 0.0
 
         # Compute z-score against prior baseline before updating
         prior_mean = self.mean
-        prior_var = max(self.variance if self.variance is not None else 1.0, self.epsilon)
+        prior_var = max(
+            self.variance if self.variance is not None else self._scale_variance_floor(prior_mean, self.epsilon),
+            self.epsilon,
+        )
         prior_std = math.sqrt(prior_var)
+        raw_diff = val - prior_mean
+        z_score = raw_diff / prior_std
 
-        z_score = (value - prior_mean) / prior_std
+        if self.count <= self.min_samples:
+            # Welford's online algorithm for burn-in window
+            delta = val - self._welford_mean
+            self._welford_mean += delta / self.count
+            delta2 = val - self._welford_mean
+            self._welford_m2 += delta * delta2
 
-        # Guard against baseline poisoning on extreme anomaly spikes (|z| >= 4.0 after burn-in)
-        if self.guard_poisoning and self.count > self.min_samples and abs(z_score) >= 4.0:
-            eff_alpha = self.alpha * 0.05
+            sample_var = self._welford_m2 / max(self.count - 1, 1)
+            scale_floor = self._scale_variance_floor(self._welford_mean, self.epsilon)
+            self.mean = self._welford_mean
+            self.variance = max(sample_var, scale_floor, self.epsilon)
+            return self.mean, math.sqrt(self.variance), z_score
+
+        # Post burn-in: Huber/Winsorized residual clipping + tiered alpha damping when |z| >= threshold
+        if self.guard_poisoning and abs(z_score) >= self.poisoning_threshold:
+            self.last_winsorized = True
+            max_residual = self.poisoning_threshold * prior_std
+            effective_diff = math.copysign(min(abs(raw_diff), max_residual), raw_diff)
+            if abs(z_score) >= 4.0:
+                eff_alpha = self.alpha * 0.02
+            else:
+                eff_alpha = self.alpha * 0.10
         else:
+            effective_diff = raw_diff
             eff_alpha = self.alpha
 
-        # Update running mean and variance
-        diff = value - prior_mean
-        self.mean = eff_alpha * value + (1.0 - eff_alpha) * prior_mean
+        # Update running mean and variance using Winsorized innovation residual
+        self.mean = prior_mean + eff_alpha * effective_diff
 
-        # Adaptive variance tracking with exponential weighting
-        incr_var = (1.0 - eff_alpha) * (prior_var + eff_alpha * (diff ** 2))
-        self.variance = max(incr_var, self.epsilon)
+        incr_var = (1.0 - eff_alpha) * (prior_var + eff_alpha * (effective_diff ** 2))
+        scale_floor = self._scale_variance_floor(self.mean, self.epsilon)
+        self.variance = max(incr_var, scale_floor, self.epsilon)
         std = math.sqrt(self.variance)
 
         return self.mean, std, z_score
+
+
 
 
 class DetectionEngine:
@@ -180,6 +242,7 @@ class DetectionEngine:
         state = EWMAState(
             alpha=self.alpha,
             min_samples=self.min_samples,
+            poisoning_threshold=self.base_threshold,
         )
         self._states[key] = state
         return state
@@ -248,6 +311,8 @@ class DetectionEngine:
             ewma_mean=float(mean),
             ewma_std=float(std),
             timestamp=ts,
+            burn_in_complete=(state.count >= self.min_samples),
+            winsorized=state.last_winsorized,
         )
 
     def reset_state(self, service_id: str | None = None, metric_type: str | None = None) -> None:

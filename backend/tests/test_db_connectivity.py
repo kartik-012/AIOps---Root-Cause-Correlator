@@ -22,6 +22,25 @@ from app.models.db_models import (
 )
 
 
+def _is_db_reachable() -> bool:
+    try:
+        settings = get_settings()
+        session_factory = get_session_factory(settings)
+        engine = session_factory.kw["bind"]
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+skip_if_no_pg = pytest.mark.skipif(
+    not _is_db_reachable(),
+    reason="Live PostgreSQL database with pgvector not reachable on localhost:5433 (runs in CI container)",
+)
+
+
+@skip_if_no_pg
 def test_database_connection_and_tables():
     """Verify all 9 tables exist in PostgreSQL."""
     settings = get_settings()
@@ -48,6 +67,7 @@ def test_database_connection_and_tables():
         assert expected in tables, f"Expected table '{expected}' not found in database. Existing: {tables}"
 
 
+@skip_if_no_pg
 def test_crud_and_vector_column():
     """Verify insert and query across services, incidents, vector(7) signature."""
     settings = get_settings()

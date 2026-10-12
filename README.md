@@ -152,6 +152,7 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 6. **Online Thompson Sampling Bandit Runbook Ranking (`ThompsonSamplingRunbookBandit`)**: Maintains Beta-Bernoulli $(\alpha, \beta)$ posteriors and rolling MTTR per `(root_cause_type, action_id)`, learning online from production remediation outcomes.
 7. **Multi-Tenant HNSW Vector Signature Partitioning (`SuppressionEngine` & `pgvector`)**: Scopes 7D cyclical cosine-similarity false-positive suppression across `(tenant_id, environment)` partitions.
 8. **Automated Chaos GameDay Scenario Runner (`ChaosGameDayEngine`)**: Orchestrates end-to-end 4-stage production crisis drills (Fault Injection $\to$ Streaming Detection $\to$ Graph & Trace Isolation $\to$ Canary Remediation), measuring real-time **MTTD**, **MTTI**, and **MTTR**.
+9. **Progressive Trust, Admin Investigation Mode & Real-Phone Mobile Dossier (`RemediationEngine` & `AdminGovernanceModal`)**: Solves the out-of-office Principal SRE approval bottleneck using HMAC-SHA256 signed Magic-Link Dossiers, scannable **QR codes** (`?mode=mobile-admin`), instant Discord/Slack/SMTP phone push, an **Investigation Hold Timer** (`👀 Acknowledge & Pause Timer`), **1% Shadow Dry-Run Sandbox**, and an automatic **Unreachable-Admin 5% Canary Break-Glass** fallback.
 
 ---
 
@@ -178,12 +179,14 @@ flowchart TD
         CE --> SE["Multi-Tenant pgvector HNSW Suppression"]
         CE --> CF["Counterfactual What-If Simulator"]
         CE --> REM["Canary Circuit-Breaker + Thompson Sampling Bandit"]
+        REM --> GOV["HMAC Mobile Dossier · Hold Timer · 1% Shadow Dry-Run"]
         CE --> LLM["Hallucination-Guarded RCA Post-Mortem Generator"]
     end
 
     subgraph PresentationPlane ["Real-time Observability UI"]
         CE -->|WebSocket Push| WS["Live Incident Streaming"]
         WS --> UI["React 18 / Three.js 3D WebGL Dashboard"]
+        GOV -->|QR Code / Webhook / SMTP| PHONE["Smartphone Standalone Admin View"]
         CE --> GQL["Strawberry GraphQL Control Plane"]
         CE --> SLACK["Slack & Discord Block Kit Webhook"]
     end

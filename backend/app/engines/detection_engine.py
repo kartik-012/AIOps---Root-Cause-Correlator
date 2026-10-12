@@ -320,12 +320,25 @@ class DetectionEngine:
         if service_id is None and metric_type is None:
             if self._redis is not None:
                 try:
-                    for key in self._redis.scan_iter("ewma:state:*"):
-                        self._redis.delete(key)
+                    for k in list(self._states.keys()):
+                        self._redis.delete(self._redis_key(k[0], k[1]))
+                    if hasattr(self._redis, "scan_iter"):
+                        for key in self._redis.scan_iter("ewma:*"):
+                            self._redis.delete(key)
                 except Exception:
                     pass
             self._states.clear()
         else:
+            if self._redis is not None:
+                try:
+                    if service_id is not None and metric_type is not None:
+                        self._redis.delete(self._redis_key(str(service_id), str(metric_type)))
+                    elif hasattr(self._redis, "scan_iter"):
+                        pattern = f"ewma:{service_id if service_id is not None else '*'}:{metric_type if metric_type is not None else '*'}"
+                        for key in self._redis.scan_iter(pattern):
+                            self._redis.delete(key)
+                except Exception:
+                    pass
             keys_to_del = [
                 k for k in self._states.keys()
                 if (service_id is None or k[0] == str(service_id))

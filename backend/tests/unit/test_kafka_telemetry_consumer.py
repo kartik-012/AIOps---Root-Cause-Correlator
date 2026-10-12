@@ -42,9 +42,9 @@ async def test_telemetry_consumer_correlates_cascade_to_upstream_root_cause(monk
     monkeypatch.setattr(tc_module, "get_kafka_producer", lambda: dummy_producer)
 
     det_engine = _get_detection_engine()
-    det_engine.reset_state()
     for s_name in ("payment-service", "order-service", "api-gateway"):
-        det_engine.reset_state(s_name)
+        det_engine.reset_state(s_name, "latency_ms")
+    det_engine.reset_state()
 
     consumer = TelemetryConsumer(
         correlation_window_seconds=60.0,

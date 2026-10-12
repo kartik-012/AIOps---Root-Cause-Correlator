@@ -318,6 +318,12 @@ class DetectionEngine:
     def reset_state(self, service_id: str | None = None, metric_type: str | None = None) -> None:
         """Reset state for a specific metric or all metrics."""
         if service_id is None and metric_type is None:
+            if self._redis is not None:
+                try:
+                    for key in self._redis.scan_iter("ewma:state:*"):
+                        self._redis.delete(key)
+                except Exception:
+                    pass
             self._states.clear()
         else:
             keys_to_del = [

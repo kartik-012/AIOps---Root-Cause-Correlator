@@ -43,6 +43,8 @@ async def test_telemetry_consumer_correlates_cascade_to_upstream_root_cause(monk
 
     det_engine = _get_detection_engine()
     det_engine.reset_state()
+    for s_name in ("payment-service", "order-service", "api-gateway"):
+        det_engine.reset_state(s_name)
 
     consumer = TelemetryConsumer(
         correlation_window_seconds=60.0,

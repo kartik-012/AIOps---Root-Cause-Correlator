@@ -147,4 +147,57 @@ export const api = {
     })
     return res.json()
   },
+
+  // Principal SRE Feature 1: 5% Canary Safety Circuit-Breaker Execution
+  async executeCanaryRunbook(incidentId = 'inc-default', targetService = 'payment-service', rootCauseType = 'db_pool_exhaustion', canaryPercent = 5) {
+    const params = new URLSearchParams({
+      target_service: targetService,
+      root_cause_type: rootCauseType,
+      canary_percent: String(canaryPercent),
+    })
+    const res = await fetch(`${API_BASE}/runbook/${incidentId}/execute-canary?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Canary execution failed')
+    return res.json()
+  },
+
+  // Principal SRE Feature 2: Online Thompson Sampling Bandit Runbook Rankings
+  async getBanditRankedRunbooks(rootCauseType = 'db_pool_exhaustion') {
+    const res = await fetch(`${API_BASE}/runbook/${rootCauseType}/bandit-rankings`)
+    if (!res.ok) throw new Error('Bandit ranking fetch failed')
+    return res.json()
+  },
+
+  // Principal SRE Feature 3: OpenTelemetry Distributed Trace Critical-Path Span Attribution
+  async analyzeTraceCriticalPath(rootService = 'payment-service', faultType = 'db_pool_exhaustion') {
+    const params = new URLSearchParams({ root_service: rootService, fault_type: faultType })
+    const res = await fetch(`${API_BASE}/chaos/trace-critical-path?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('Trace critical path failed')
+    return res.json()
+  },
+
+  // Principal SRE Feature 4: Automated 4-Stage Chaos GameDay Drill
+  async runChaosGameDay(scenario = 'db_pool_exhaustion', rootService = 'payment-service') {
+    const res = await fetch(`${API_BASE}/chaos/gameday`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario, root_service: rootService }),
+    })
+    if (!res.ok) throw new Error('Chaos GameDay failed')
+    return res.json()
+  },
+
+  // Principal SRE Feature 5: 100-Node DAG Scalability Benchmark
+  async run100NodeScalabilityBenchmark(numNodes = 100, iterations = 10) {
+    const params = new URLSearchParams({ num_nodes: String(numNodes), iterations: String(iterations) })
+    const res = await fetch(`${API_BASE}/eval/benchmark-100-node?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!res.ok) throw new Error('100-node benchmark failed')
+    return res.json()
+  },
 }
+

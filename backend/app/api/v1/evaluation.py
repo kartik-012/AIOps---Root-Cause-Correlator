@@ -40,3 +40,12 @@ def run_evaluation_scenarios():
         overall_pass_confidence_interval_95=list(report.overall_pass_confidence_interval_95),
     )
 
+
+@router.post("/eval/benchmark-100-node")
+def run_100_node_graph_scalability_benchmark(num_nodes: int = 100, iterations: int = 10):
+    """Execute 100-node microservice DAG correlation scalability benchmark and return p50/p95/p99 latency."""
+    return EvaluationRunner.benchmark_100_node_graph_latency(
+        num_nodes=max(10, min(num_nodes, 500)),
+        iterations=max(1, min(iterations, 50)),
+    )
+

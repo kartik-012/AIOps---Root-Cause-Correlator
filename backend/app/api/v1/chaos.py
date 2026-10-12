@@ -226,3 +226,53 @@ async def inject_chaos(
         "scenario": payload.scenario,
         "anomalies_triggered": injected,
     }
+
+
+class GameDayDrillRequest(BaseModel):
+    scenario: str = "db_pool_exhaustion"
+    root_service: str = "payment-service"
+
+
+@router.post("/chaos/gameday")
+async def run_automated_chaos_gameday(
+    payload: GameDayDrillRequest,
+    _operator: str = Depends(verify_operator_access),
+):
+    """Execute a 4-stage automated Chaos GameDay drill (Fault -> Detection -> Trace/Graph Isolation -> Canary Remediation)."""
+    from app.engines.chaos_gameday_engine import ChaosGameDayEngine
+
+    if payload.scenario not in ALLOWED_CHAOS_SCENARIOS or payload.scenario == "reset":
+        raise HTTPException(status_code=400, detail=f"Invalid GameDay scenario '{payload.scenario}'")
+
+    engine = ChaosGameDayEngine()
+    report = await engine.run_gameday_drill(
+        scenario_name=payload.scenario,
+        root_service=payload.root_service,
+    )
+    report_dict = report.to_dict()
+    await broadcast_event({
+        "type": "chaos_gameday_completed",
+        "gameday_id": report.gameday_id,
+        "isolated_root_service": report.isolated_root_service,
+        "mttd_ms": report.mttd_ms,
+        "mtti_ms": report.mtti_ms,
+        "mttr_ms": report.mttr_ms,
+    })
+    return report_dict
+
+
+@router.post("/chaos/trace-critical-path")
+def analyze_distributed_trace_critical_path(
+    root_service: str = "payment-service",
+    fault_type: str = "db_pool_exhaustion",
+):
+    """Synthesize or decompose an OpenTelemetry distributed trace to isolate the critical-path bottleneck span."""
+    from app.engines.trace_attribution_engine import TraceAttributionEngine
+
+    engine = TraceAttributionEngine()
+    spans = engine.synthesize_cascade_trace(
+        root_cause_service=root_service,
+        fault_type=fault_type,
+    )
+    report = engine.analyze_trace(spans)
+    return report.to_dict()

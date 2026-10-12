@@ -148,3 +148,54 @@ async def approve_runbook(
         incident_id=incident_id,
     )
 
+
+@router.post("/runbook/{incident_id}/execute-canary")
+async def execute_canary_remediation(
+    incident_id: str,
+    target_service: str = "payment-service",
+    root_cause_type: str = "db_pool_exhaustion",
+    canary_percent: int = 5,
+    _operator: str = Depends(verify_operator_access),
+):
+    """Execute a remediation plan in Canary mode (e.g., 5% traffic slice) with automatic circuit-breaker rollback."""
+    from app.engines.remediation_engine import get_remediation_engine
+
+    rem_engine = get_remediation_engine()
+    plan = rem_engine.generate_plan(
+        incident_id=incident_id,
+        root_cause_type=root_cause_type,
+        target_service=target_service,
+    )
+    executed = await rem_engine.execute_canary_with_safety_circuit_breaker(
+        plan_id=plan.plan_id,
+        approver=_operator or "sre-operator",
+        canary_percent=canary_percent,
+        verify_health=True,
+    )
+    bandit_state = rem_engine.bandit.record_outcome(
+        root_cause_type=root_cause_type,
+        action_id=executed.action_title,
+        resolved=(executed.canary_status == "CANARY_SUCCESS"),
+    )
+    return {
+        "plan": executed.to_dict(),
+        "bandit_posterior": bandit_state,
+    }
+
+
+@router.get("/runbook/{root_cause_type}/bandit-rankings")
+def get_bandit_ranked_runbooks(root_cause_type: str):
+    """Return candidate remediation runbooks ranked by online Beta-Bernoulli Thompson Sampling bandit."""
+    from app.engines.remediation_engine import get_remediation_engine
+
+    library = _load_runbooks()
+    entry = library.get(root_cause_type, {})
+    steps = entry.get("steps", ["Scale connection pool", "Rolling restart with heap dump", "Rollback canary deploy"])
+    candidates = [{"action_id": f"step_{idx+1}", "title": s} for idx, s in enumerate(steps)]
+    rem_engine = get_remediation_engine()
+    ranked = rem_engine.bandit.rank_runbooks(root_cause_type, candidates, explore=False)
+    return {
+        "root_cause_type": root_cause_type,
+        "ranked_actions": ranked,
+    }
+

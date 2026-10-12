@@ -64,17 +64,21 @@ class SimilarIncidentsRequest(BaseModel):
     anomaly_signature: list[float] = Field(..., min_length=7, max_length=7)
     top_k: int = Field(default=5, ge=1, le=50)
     false_positives_only: bool = False
+    tenant_id: str | None = None
+    environment: str | None = None
 
 
 @router.post("/suppression/similar")
 def retrieve_similar_historical_incidents(payload: SimilarIncidentsRequest, db: DBSession):
-    """Retrieve Top-K nearest historical incidents via pgvector cosine distance (`<=>`)."""
+    """Retrieve Top-K nearest historical incidents via pgvector cosine distance (`<=>`) with multi-tenant filtering."""
     engine = get_suppression_engine(db)
     matches = engine.retrieve_similar_incidents(
         candidate_signature=payload.anomaly_signature,
         db=db,
         top_k=payload.top_k,
         false_positives_only=payload.false_positives_only,
+        tenant_id=payload.tenant_id,
+        environment=payload.environment,
     )
     return {
         "count": len(matches),

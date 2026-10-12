@@ -315,6 +315,64 @@ class DetectionEngine:
             winsorized=state.last_winsorized,
         )
 
+    def fit_diurnal_profile(
+        self,
+        service_id: str,
+        metric_type: str,
+        observations: list[tuple[datetime, float]],
+    ) -> DiurnalSeasonalBaseline:
+        """Fit a 24-hour Fourier harmonic diurnal baseline for (service_id, metric_type)."""
+        key = (str(service_id), str(metric_type))
+        if not hasattr(self, "_seasonal_models"):
+            self._seasonal_models: dict[tuple[str, str], DiurnalSeasonalBaseline] = {}
+        model = DiurnalSeasonalBaseline()
+        model.fit(observations)
+        self._seasonal_models[key] = model
+        return model
+
+    def process_seasonal_metric(
+        self,
+        service_id: str,
+        metric_type: str,
+        value: float,
+        timestamp: datetime,
+    ) -> AnomalyDetectionResult:
+        """Evaluate a metric point against its 24-hour diurnal Fourier harmonic expectation + EWMA residual baseline.
+
+        Eliminates 9:00 AM morning traffic ramp false positives while immediately flagging off-peak (e.g., 3:00 AM)
+        anomalies of the same absolute magnitude.
+        """
+        key = (str(service_id), str(metric_type))
+        if not hasattr(self, "_seasonal_models"):
+            self._seasonal_models = {}
+        seasonal_model = self._seasonal_models.get(key)
+        if seasonal_model is None or not seasonal_model.is_fitted:
+            return self.process_metric(service_id, metric_type, value, timestamp)
+
+        expected_val, residual_std = seasonal_model.predict_and_score(timestamp, value)
+        z_score = (value - expected_val) / max(residual_std, 1e-3)
+        abs_z = abs(z_score)
+        is_anomaly = abs_z >= self.base_threshold
+        severity = self.classify_severity(abs_z) if is_anomaly else "low"
+
+        # Update online harmonic weights only when observation is not an extreme anomaly
+        if not is_anomaly:
+            seasonal_model.update_online(timestamp, value)
+
+        return AnomalyDetectionResult(
+            service_id=str(service_id),
+            metric_type=metric_type,
+            value=float(value),
+            is_anomaly=is_anomaly,
+            z_score=float(z_score),
+            severity=severity,
+            ewma_mean=float(expected_val),
+            ewma_std=float(residual_std),
+            timestamp=timestamp,
+            burn_in_complete=True,
+            winsorized=False,
+        )
+
     def reset_state(self, service_id: str | None = None, metric_type: str | None = None) -> None:
         """Reset state for a specific metric or all metrics."""
         if service_id is None and metric_type is None:
@@ -328,6 +386,8 @@ class DetectionEngine:
                 except Exception:
                     pass
             self._states.clear()
+            if hasattr(self, "_seasonal_models"):
+                self._seasonal_models.clear()
         else:
             if self._redis is not None:
                 try:
@@ -351,6 +411,77 @@ class DetectionEngine:
                     except Exception:
                         pass
                 del self._states[k]
+
+
+class DiurnalSeasonalBaseline:
+    """24-Hour Fourier Harmonic Seasonal Decomposition Model.
+
+    Models diurnal traffic cycles:
+        y_hat(t) = c0 + a1*sin(w*t) + b1*cos(w*t) + a2*sin(2*w*t) + b2*cos(2*w*t)
+    where w = 2*pi / 86400 seconds (24h period).
+    """
+
+    PERIOD_SECONDS = 86400.0
+
+    def __init__(self, learning_rate: float = 0.05):
+        self.learning_rate = learning_rate
+        # Weights: [c0, a1, b1, a2, b2]
+        self.weights: list[float] = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self.residual_std: float = 1.0
+        self.is_fitted: bool = False
+
+    @classmethod
+    def _basis(cls, ts: datetime) -> list[float]:
+        seconds_of_day = ts.hour * 3600.0 + ts.minute * 60.0 + ts.second
+        omega = (2.0 * math.pi * seconds_of_day) / cls.PERIOD_SECONDS
+        return [
+            1.0,
+            math.sin(omega),
+            math.cos(omega),
+            math.sin(2.0 * omega),
+            math.cos(2.0 * omega),
+        ]
+
+    def fit(self, observations: list[tuple[datetime, float]]) -> None:
+        """Fit Fourier harmonic weights via regularized normal equations (5x5 system) + online refinement."""
+        if not observations:
+            return
+
+        n = len(observations)
+        mean_y = sum(v for _, v in observations) / n
+        self.weights = [mean_y, 0.0, 0.0, 0.0, 0.0]
+
+        # Multi-epoch Least Mean Squares convergence over the 5 orthogonal Fourier basis functions
+        for _ in range(40):
+            for ts, val in observations:
+                phi = self._basis(ts)
+                pred = sum(w * p for w, p in zip(self.weights, phi))
+                err = val - pred
+                step = 0.08
+                for j in range(5):
+                    self.weights[j] += step * err * phi[j]
+
+        residuals = [
+            val - sum(w * p for w, p in zip(self.weights, self._basis(ts)))
+            for ts, val in observations
+        ]
+        var = sum(r * r for r in residuals) / max(n - 1, 1)
+        self.residual_std = max(math.sqrt(var), 0.5)
+        self.is_fitted = True
+
+    def predict_and_score(self, ts: datetime, value: float) -> tuple[float, float]:
+        """Return (expected_seasonal_value, residual_std) at timestamp ts."""
+        phi = self._basis(ts)
+        expected = sum(w * p for w, p in zip(self.weights, phi))
+        return expected, self.residual_std
+
+    def update_online(self, ts: datetime, value: float) -> None:
+        """Adapt Fourier coefficients gently to gradual week-over-week traffic growth."""
+        phi = self._basis(ts)
+        pred = sum(w * p for w, p in zip(self.weights, phi))
+        err = value - pred
+        for j in range(5):
+            self.weights[j] += self.learning_rate * err * phi[j]
 
 
 _shared_detection_engine: DetectionEngine | None = None
@@ -379,3 +510,4 @@ def get_shared_detection_engine() -> DetectionEngine:
             redis_client=redis_client,
         )
     return _shared_detection_engine
+

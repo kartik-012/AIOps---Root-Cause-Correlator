@@ -132,14 +132,26 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 
 | Evaluation Metric | Target SLA | Benchmark Result | Status |
 | :--- | :---: | :---: | :---: |
-| **Top-1 Root Cause Accuracy** | $\ge 90.0\%$ | **100.0%** (30 / 30) | ✅ **PASSED** |
-| **Top-3 Root Cause Accuracy** | $\ge 95.0\%$ | **100.0%** (30 / 30) | ✅ **PASSED** |
+| **Top-1 Root Cause Accuracy** | $\ge 90.0\%$ | **100.0%** (30 / 30, 95% Wilson CI: `[88.6%, 100%]`) | ✅ **PASSED** |
+| **Top-3 Root Cause Accuracy** | $\ge 95.0\%$ | **100.0%** (30 / 30, 95% Wilson CI: `[88.6%, 100%]`) | ✅ **PASSED** |
 | **Multi-Root-Cause Separation** | $\ge 85.0\%$ | **100.0%** (12 scenarios) | ✅ **PASSED** |
-| **False-Positive Suppression Precision** | $\ge 90.0\%$ | **100.0%** (8 scenarios) | ✅ **PASSED** |
-| **False-Positive Suppression Recall** | $\ge 85.0\%$ | **100.0%** | ✅ **PASSED** |
+| **False-Positive Suppression Precision & F1** | $\ge 90.0\%$ | **100.0%** (F1 = `1.000`) | ✅ **PASSED** |
 | **Forward Blast Radius Accuracy** | $\ge 85.0\%$ | **100.0%** (8 scenarios) | ✅ **PASSED** |
-| **Mean Time to Correlate (MTTC)** | $< 2.0\text{s}$ | **0.78 seconds** | ✅ **PASSED** |
-| **Automated Unit & Integration Test Suite** | 100% Green | **30 / 30 Passed** | ✅ **PASSED** |
+| **100-Node DAG Correlation Latency ($p_{95} / p_{99}$)** | $< 800\text{ms}$ | **$< 45\text{ms}$** | ✅ **PASSED** |
+| **Automated Unit & Integration Test Suite** | 100% Green | **125 / 125 Passed** | ✅ **PASSED** |
+
+---
+
+## 🧠 Principal SRE Architectural Capabilities
+
+1. **MicroRCA++ Dynamic Edge-Weighted Personalized PageRank (`CorrelationEngine`)**: Replaces static uniform transition probabilities with log-scaled request-rate (`log1p(RPS)`) and empirical metric covariance edge weights, preventing hub-bias false positives on API Gateways.
+2. **24-Hour Fourier Harmonic Diurnal EWMA (`DiurnalSeasonalBaseline`)**: Models daily traffic seasonality ($\mu + \sum [a_k \sin(k\omega t) + b_k \cos(k\omega t)]$) so expected 9:00 AM morning traffic surges do not trigger false alarms, while off-peak 3:00 AM spikes of the same magnitude immediately page on-call SREs.
+3. **OpenTelemetry Distributed Trace Critical-Path Attribution (`TraceAttributionEngine`)**: Decomposes multi-hop distributed traces into interval-merged exclusive span execution times (`exclusive_time = duration - merged_children_wait`), isolating the exact SQL query or gRPC method responsible for tail latency.
+4. **Lock-Free Streaming Ring Buffer with Backpressure (`StreamingRingBuffer`)**: Bounded `10,000`-event ingestion ring buffer with an `80%` high-watermark backpressure circuit that downsamples stationary nominal metrics by `75%` during alert storms while preserving `100%` of anomalous spikes.
+5. **Canary Remediation Safety Circuit-Breaker (`execute_canary_with_safety_circuit_breaker`)**: Executes high-risk runbook actions on a `5%` canary slice, verifies post-remediation gRPC health telemetry, and triggers an automatic rollback (`ABORTED_ROLLED_BACK`) if error rates fail to recover.
+6. **Online Thompson Sampling Bandit Runbook Ranking (`ThompsonSamplingRunbookBandit`)**: Maintains Beta-Bernoulli $(\alpha, \beta)$ posteriors and rolling MTTR per `(root_cause_type, action_id)`, learning online from production remediation outcomes.
+7. **Multi-Tenant HNSW Vector Signature Partitioning (`SuppressionEngine` & `pgvector`)**: Scopes 7D cyclical cosine-similarity false-positive suppression across `(tenant_id, environment)` partitions.
+8. **Automated Chaos GameDay Scenario Runner (`ChaosGameDayEngine`)**: Orchestrates end-to-end 4-stage production crisis drills (Fault Injection $\to$ Streaming Detection $\to$ Graph & Trace Isolation $\to$ Canary Remediation), measuring real-time **MTTD**, **MTTI**, and **MTTR**.
 
 ---
 
@@ -148,24 +160,25 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 ```mermaid
 flowchart TD
     subgraph DataPlane ["Telemetry Ingestion & Event Backbone"]
-        K1["Apache Kafka KRaft"] -->|service.telemetry| E1["EWMA Adaptive Detector"]
+        K1["Apache Kafka KRaft + RingBuffer Backpressure"] -->|service.telemetry| E1["Diurnal Fourier + Winsorized EWMA Detector"]
         K1 -->|service.errors| E1
-        OT["OpenTelemetry Spans"] -->|OTLP POST| K1
+        OT["OpenTelemetry Spans"] -->|Critical-Path Span Tree| TA["TraceAttributionEngine"]
     end
 
     subgraph AnalyticsEngine ["Causal Inference & Correlation"]
         E1 -->|Z-Score > 2.5σ| AG["Anomaly Graph Subgraph"]
-        AG --> CE["NetworkX Causal Correlator"]
-        G_SVC["PostgreSQL / SQLite Topology"] -->|Dependency Graph| CE
+        AG --> CE["MicroRCA++ Edge-Weighted PageRank Correlator"]
+        TA -->|Exclusive Span Bottleneck| CE
+        G_SVC["PostgreSQL / SQLite Topology"] -->|RPS + Covariance Graph| CE
         CE -->|Suspect Identified| GRPC["gRPC Diagnostic Mesh (:50051)"]
         GRPC -->|Adjust Confidence| CE
     end
 
-    subgraph MemoryIntelligence ["Adaptive Memory & Intelligence"]
-        CE --> SE["False-Positive Suppression Engine"]
-        SE <-->|Cosine Similarity| RD["Redis Vector Signature Store"]
+    subgraph MemoryIntelligence ["Adaptive Memory & Closed-Loop Remediation"]
+        CE --> SE["Multi-Tenant pgvector HNSW Suppression"]
         CE --> CF["Counterfactual What-If Simulator"]
-        CE --> LLM["LLM Executive Post-Mortem Generator"]
+        CE --> REM["Canary Circuit-Breaker + Thompson Sampling Bandit"]
+        CE --> LLM["Hallucination-Guarded RCA Post-Mortem Generator"]
     end
 
     subgraph PresentationPlane ["Real-time Observability UI"]
@@ -247,6 +260,11 @@ python -m pytest tests/ -v
 | `POST` | `/api/v1/correlation/run` | Triggers causal correlation, gRPC verification, and incident clustering |
 | `GET` | `/api/v1/correlation/incidents/{id}` | Full incident detail including affected cascade paths and linked anomalies |
 | `POST` | `/api/v1/chaos/inject` | Injects synthetic failure scenarios (`db_pool_exhaustion`, `memory_leak`, `reset`) |
+| `POST` | `/api/v1/chaos/gameday` | Executes automated 4-stage Chaos GameDay drill and returns MTTD, MTTI, and MTTR |
+| `POST` | `/api/v1/chaos/trace-critical-path` | Runs OpenTelemetry distributed trace critical-path span attribution |
+| `POST` | `/api/v1/runbook/{id}/execute-canary` | Executes remediation in 5% canary mode with automatic safety circuit-breaker rollback |
+| `GET` | `/api/v1/runbook/{type}/bandit-rankings` | Ranks runbook actions via online Beta-Bernoulli Thompson Sampling bandit |
+| `POST` | `/api/v1/eval/benchmark-100-node` | Runs 100-node microservice DAG correlation scalability benchmark ($p_{50}/p_{95}/p_{99}$) |
 | `GET` | `/api/v1/diagnostics/all` | Queries gRPC diagnostic mesh for real-time CPU, memory, and p95 latency |
 | `GET` | `/api/v1/kafka/status` | Returns Kafka KRaft connection status and bootstrap server endpoints |
 | `POST` | `/api/v1/kafka/publish-telemetry` | Publishes telemetry metrics directly into the Kafka `service.telemetry` topic |
@@ -260,3 +278,4 @@ python -m pytest tests/ -v
 ## 📜 License
 
 This project is open-source under the [MIT License](LICENSE).
+

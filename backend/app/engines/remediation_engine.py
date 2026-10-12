@@ -38,6 +38,29 @@ class RemediationPlan:
     auto_rollback_triggered: bool = False
     canary_status: str = "FULL_DEPLOYED"  # PENDING, CANARY_ACTIVE, CANARY_SUCCESS, ABORTED_ROLLED_BACK, FULL_DEPLOYED
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "incident_id": self.incident_id,
+            "root_cause_type": self.root_cause_type,
+            "target_service": self.target_service,
+            "action_title": self.action_title,
+            "command_payload": self.command_payload,
+            "risk_level": self.risk_level,
+            "requires_approval": self.requires_approval,
+            "status": self.status,
+            "suggested_at": self.suggested_at.isoformat() if self.suggested_at else None,
+            "executed_at": self.executed_at.isoformat() if self.executed_at else None,
+            "approved_by": self.approved_by,
+            "pre_remediation_health": self.pre_remediation_health,
+            "post_remediation_health": self.post_remediation_health,
+            "closed_loop_verified": self.closed_loop_verified,
+            "canary_percentage": self.canary_percentage,
+            "is_canary": self.is_canary,
+            "auto_rollback_triggered": self.auto_rollback_triggered,
+            "canary_status": self.canary_status,
+        }
+
 
 RECOMMENDED_ACTIONS = {
     "db_connection_exhaustion": {
@@ -73,12 +96,105 @@ RECOMMENDED_ACTIONS = {
 }
 
 
+class ThompsonSamplingRunbookBandit:
+    """Beta-Bernoulli Multi-Armed Bandit for online Runbook Action Ranking.
+
+    Tracks posterior (alpha, beta) and rolling MTTR for each (root_cause_type, action_id) arm.
+    Learns online from production remediation outcomes:
+    - Successful closed-loop health recovery -> alpha += 1.0
+    - Canary circuit-breaker abort / failed recovery -> beta += 1.0
+    """
+
+    def __init__(self, seed: int = 42):
+        import random
+        self._rng = random.Random(seed)
+        # Key: (root_cause_type, action_id) -> {"alpha": float, "beta": float, "mean_mttr_s": float, "trials": int}
+        self._arms: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def _get_arm(self, root_cause_type: str, action_id: str) -> dict[str, Any]:
+        key = (root_cause_type, action_id)
+        if key not in self._arms:
+            self._arms[key] = {
+                "alpha": 2.0,  # Weak optimistic prior Beta(2, 1)
+                "beta": 1.0,
+                "mean_mttr_s": 15.0,
+                "trials": 0,
+            }
+        return self._arms[key]
+
+    def record_outcome(
+        self,
+        root_cause_type: str,
+        action_id: str,
+        resolved: bool,
+        mttr_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        """Update Beta(alpha, beta) posterior after remediation execution."""
+        arm = self._get_arm(root_cause_type, action_id)
+        arm["trials"] += 1
+        if resolved:
+            arm["alpha"] += 1.0
+        else:
+            arm["beta"] += 1.0
+
+        if mttr_seconds is not None and mttr_seconds > 0:
+            n = arm["trials"]
+            arm["mean_mttr_s"] = ((n - 1) * arm["mean_mttr_s"] + mttr_seconds) / n
+
+        return {
+            "root_cause_type": root_cause_type,
+            "action_id": action_id,
+            "alpha": arm["alpha"],
+            "beta": arm["beta"],
+            "posterior_mean": round(arm["alpha"] / (arm["alpha"] + arm["beta"]), 4),
+            "mean_mttr_s": round(arm["mean_mttr_s"], 2),
+            "trials": arm["trials"],
+        }
+
+    def rank_runbooks(
+        self,
+        root_cause_type: str,
+        candidate_actions: list[dict[str, Any]],
+        explore: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Rank candidate runbook actions by Thompson Sampling draw (explore=True) or posterior mean (explore=False)."""
+        scored: list[dict[str, Any]] = []
+        for cand in candidate_actions:
+            action_id = str(cand.get("action_id") or cand.get("action") or cand.get("title"))
+            arm = self._get_arm(root_cause_type, action_id)
+            alpha, beta = arm["alpha"], arm["beta"]
+            posterior_mean = alpha / (alpha + beta)
+            sampled_theta = self._rng.betavariate(alpha, beta) if explore else posterior_mean
+            # Penalize very slow MTTR slightly so faster equally-reliable actions win ties
+            mttr_bonus = 1.0 / (1.0 + 0.01 * arm["mean_mttr_s"])
+            composite_score = 0.85 * sampled_theta + 0.15 * mttr_bonus
+
+            enriched = dict(cand)
+            enriched.update(
+                {
+                    "action_id": action_id,
+                    "alpha": alpha,
+                    "beta": beta,
+                    "posterior_success_prob": round(posterior_mean, 4),
+                    "sampled_theta": round(sampled_theta, 4),
+                    "bandit_score": round(composite_score, 4),
+                    "trials": arm["trials"],
+                    "mean_mttr_s": round(arm["mean_mttr_s"], 2),
+                }
+            )
+            scored.append(enriched)
+
+        scored.sort(key=lambda x: x["bandit_score"], reverse=True)
+        return scored
+
+
 class RemediationEngine:
     """Manages remediation proposals, human approvals, closed-loop gRPC execution, and event tracking."""
 
     def __init__(self, state_manager: Any | None = None):
         self._plans: Dict[str, RemediationPlan] = {}
         self._state_manager = state_manager
+        self.bandit = ThompsonSamplingRunbookBandit()
 
     def _get_state_manager(self):
         if self._state_manager is not None:

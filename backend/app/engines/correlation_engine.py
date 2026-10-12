@@ -262,6 +262,7 @@ def compute_personalized_pagerank_scores(
     service_earliest: dict[str, AnomalyEvent],
     alpha: float = 0.55,
     tau_seconds: float = 15.0,
+    edge_weights: dict[tuple[str, str], float] | None = None,
     max_iter: int = 100,
     tol: float = 1e-6,
 ) -> dict[str, float]:
@@ -269,7 +270,8 @@ def compute_personalized_pagerank_scores(
 
     Personalization vector p(u) combines anomaly severity |Z_u| and exponential temporal
     precedence exp(-delta_t_u / tau_seconds). Sink nodes receive a self-loop so downstream
-    fault sinks retain incoming causal walk mass while cyclic SCCs rank by topological flow + p(u).
+    fault sinks retain incoming causal walk mass.
+    Edge transitions support MicroRCA++ weighting via call volume (RPS) and metric covariance.
     """
     nodes = sorted(subgraph.nodes())
     n = len(nodes)
@@ -302,18 +304,33 @@ def compute_personalized_pagerank_scores(
         if work_g.out_degree(u) == 0:
             work_g.add_edge(u, u)
 
+    # Precompute transition matrix probabilities P(u -> v) with MicroRCA++ edge weights
+    edge_w = edge_weights or {}
+    transition_probs: dict[str, dict[str, float]] = {}
+    for u in nodes:
+        out_neighbors = list(work_g.successors(u))
+        if out_neighbors:
+            w_sum = sum(
+                max(float(edge_w.get((u, v), work_g[u][v].get("weight", 1.0))), 0.01)
+                for v in out_neighbors
+            )
+            transition_probs[u] = {
+                v: max(float(edge_w.get((u, v), work_g[u][v].get("weight", 1.0))), 0.01) / w_sum
+                for v in out_neighbors
+            }
+        else:
+            transition_probs[u] = {}
+
     # Power-iteration Personalized PageRank (zero external SciPy requirement)
     scores = dict(personalization)
     for _ in range(max_iter):
         prev = scores.copy()
         next_scores = {u: (1.0 - alpha) * personalization[u] for u in nodes}
         for u in nodes:
-            out_neighbors = list(work_g.successors(u))
-            deg = len(out_neighbors)
-            if deg > 0:
-                share = alpha * (prev[u] / deg)
-                for v in out_neighbors:
-                    next_scores[v] += share
+            t_probs = transition_probs[u]
+            if t_probs:
+                for v, prob in t_probs.items():
+                    next_scores[v] += alpha * prev[u] * prob
             else:
                 for v in nodes:
                     next_scores[v] += alpha * prev[u] * personalization[v]
@@ -428,12 +445,17 @@ class CorrelationEngine:
                     earliest_s = min(s_anoms, key=lambda x: x.detected_at)
                     service_earliest[sid] = earliest_s
 
-            # Differentiator #6: Cycle-Safe Causal Ranking via Personalized PageRank & Terminal SCCs
+            # Differentiator #6 & Evolution #1: Cycle-Safe Causal Ranking via Weighted Personalized PageRank (MicroRCA++)
             comp_subgraph = subgraph.subgraph(comp_services).copy()
             cycle_detected = self.dep_graph.has_cycles(comp_subgraph)
+            comp_edge_weights = {
+                (u, v): self.dep_graph.get_edge_weight(u, v)
+                for u, v in comp_subgraph.edges()
+            }
             ppr_scores = compute_personalized_pagerank_scores(
                 subgraph=comp_subgraph,
                 service_earliest=service_earliest,
+                edge_weights=comp_edge_weights,
             )
 
             # Decompose component into Strongly Connected Components (SCCs)

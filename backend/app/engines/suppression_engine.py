@@ -202,9 +202,11 @@ class SuppressionEngine:
         candidate_signature: list[float],
         service_id: str | None = None,
         metric_type: str | None = None,
+        tenant_id: str | None = None,
+        environment: str | None = None,
     ) -> SuppressionDecision | None:
         """Execute a native PostgreSQL `pgvector` cosine distance (`<=>`) query against `incidents`,
-        with optional exact metadata filtering on `(root_cause_service_id, root_cause_type)`.
+        with optional exact metadata filtering on `(root_cause_service_id, root_cause_type, tenant_id, environment)`.
 
         Returns a `SuppressionDecision` if the database query succeeds and finds false-positive
         records; returns `None` if no DB false positives exist or if running without pgvector.
@@ -227,6 +229,10 @@ class SuppressionEngine:
                 Incident.was_false_positive.is_(True),
                 Incident.anomaly_signature.is_not(None),
             ]
+            if tenant_id:
+                conditions.append(Incident.tenant_id == str(tenant_id))
+            if environment:
+                conditions.append(Incident.environment == str(environment))
             if service_id:
                 try:
                     conditions.append(Incident.root_cause_service_id == uuid.UUID(str(service_id)))
@@ -342,8 +348,11 @@ class SuppressionEngine:
         db: Session | None = None,
         top_k: int = 5,
         false_positives_only: bool = False,
+        tenant_id: str | None = None,
+        environment: str | None = None,
     ) -> list[dict[str, Any]]:
         """Retrieve Top-K nearest historical incidents via PostgreSQL `pgvector` `<=>` cosine distance,
+        with optional tenant_id and environment multi-tenant partitioning filters,
         falling back to SQLite/in-memory cosine similarity ranking when pgvector is unavailable.
         """
         if len(candidate_signature) != 7 or top_k <= 0:
@@ -362,6 +371,10 @@ class SuppressionEngine:
                     conditions = [Incident.anomaly_signature.is_not(None)]
                     if false_positives_only:
                         conditions.append(Incident.was_false_positive.is_(True))
+                    if tenant_id:
+                        conditions.append(Incident.tenant_id == str(tenant_id))
+                    if environment:
+                        conditions.append(Incident.environment == str(environment))
 
                     stmt = (
                         select(Incident, distance_col)
@@ -380,6 +393,8 @@ class SuppressionEngine:
                                 "root_cause_type": inc.root_cause_type,
                                 "was_false_positive": bool(inc.was_false_positive),
                                 "learned_pattern_tag": inc.learned_pattern_tag,
+                                "tenant_id": inc.tenant_id,
+                                "environment": inc.environment,
                                 "backend": "pgvector_sql",
                             })
                         return results
@@ -396,6 +411,10 @@ class SuppressionEngine:
                 conditions = [Incident.anomaly_signature.is_not(None)]
                 if false_positives_only:
                     conditions.append(Incident.was_false_positive.is_(True))
+                if tenant_id:
+                    conditions.append(Incident.tenant_id == str(tenant_id))
+                if environment:
+                    conditions.append(Incident.environment == str(environment))
                 inc_rows = db.scalars(select(Incident).where(*conditions)).all()
                 scored: list[dict[str, Any]] = []
                 for inc in inc_rows:
@@ -411,6 +430,8 @@ class SuppressionEngine:
                             "root_cause_type": inc.root_cause_type,
                             "was_false_positive": bool(inc.was_false_positive),
                             "learned_pattern_tag": inc.learned_pattern_tag,
+                            "tenant_id": getattr(inc, "tenant_id", "default-tenant"),
+                            "environment": getattr(inc, "environment", "production"),
                             "backend": "db_cosine_fallback",
                         })
                 if scored:

@@ -137,6 +137,8 @@ class Incident(Base):
     learned_pattern_tag: Mapped[str | None] = mapped_column(
         String(100), nullable=True
     )
+    tenant_id: Mapped[str] = mapped_column(String(100), nullable=False, default="default-tenant")
+    environment: Mapped[str] = mapped_column(String(50), nullable=False, default="production")
     anomaly_signature = mapped_column(Vector(7), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, default=lambda: datetime.now(timezone.utc)
@@ -145,6 +147,7 @@ class Incident(Base):
     __table_args__ = (
         Index("idx_incidents_root_cause_type", "root_cause_type"),
         Index("idx_incidents_false_positive", "was_false_positive"),
+        Index("idx_incidents_tenant_env", "tenant_id", "environment"),
     )
 
     # Relationships

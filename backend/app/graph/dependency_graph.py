@@ -4,6 +4,7 @@ Provides utilities for building directed dependency graphs, querying upstream/do
 nodes, extracting anomalous subgraphs, and finding connected components.
 """
 
+import math
 from typing import Any
 import networkx as nx
 
@@ -50,9 +51,37 @@ class DependencyGraph:
         """Add a service node to the graph."""
         self.graph.add_node(service_id, name=name, revenue_weight=revenue_weight)
 
-    def add_dependency(self, from_service_id: str, to_service_id: str) -> None:
+    def add_dependency(self, from_service_id: str, to_service_id: str, weight: float = 1.0) -> None:
         """Add directed dependency: from_service depends on to_service."""
-        self.graph.add_edge(from_service_id, to_service_id)
+        self.graph.add_edge(from_service_id, to_service_id, weight=float(weight))
+
+    def set_edge_weight(
+        self,
+        from_service_id: str,
+        to_service_id: str,
+        weight: float = 1.0,
+        rps: float = 0.0,
+        covariance: float = 0.0,
+    ) -> None:
+        """Set dynamic edge weight based on call volume (RPS) and metric covariance (MicroRCA++)."""
+        computed_weight = float(weight)
+        if rps > 0.0:
+            computed_weight *= (1.0 + math.log1p(rps))
+        if covariance > 0.0:
+            computed_weight *= (1.0 + min(covariance, 2.0))
+        self.graph.add_edge(
+            from_service_id,
+            to_service_id,
+            weight=round(computed_weight, 4),
+            rps=rps,
+            covariance=covariance,
+        )
+
+    def get_edge_weight(self, from_service_id: str, to_service_id: str) -> float:
+        """Return dynamic edge weight or default 1.0."""
+        if self.graph.has_edge(from_service_id, to_service_id):
+            return float(self.graph[from_service_id][to_service_id].get("weight", 1.0))
+        return 1.0
 
     def get_upstream_services(self, service_id: str) -> set[str]:
         """Get services that depend on this service (predecessors: callers)."""

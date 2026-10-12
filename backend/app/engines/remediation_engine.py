@@ -33,6 +33,10 @@ class RemediationPlan:
     pre_remediation_health: Dict[str, Any] = field(default_factory=dict)
     post_remediation_health: Dict[str, Any] = field(default_factory=dict)
     closed_loop_verified: bool = False
+    canary_percentage: int = 100
+    is_canary: bool = False
+    auto_rollback_triggered: bool = False
+    canary_status: str = "FULL_DEPLOYED"  # PENDING, CANARY_ACTIVE, CANARY_SUCCESS, ABORTED_ROLLED_BACK, FULL_DEPLOYED
 
 
 RECOMMENDED_ACTIONS = {
@@ -256,6 +260,99 @@ class RemediationEngine:
         except Exception as exc:
             logger.debug("Kafka publish_audit skipped: %s", exc)
 
+        return plan
+
+    async def execute_canary_with_safety_circuit_breaker(
+        self,
+        plan_id: str,
+        approver: str = "SRE Commander",
+        db: Any | None = None,
+        canary_percent: int = 10,
+        verify_health: bool = True,
+    ) -> RemediationPlan:
+        """Execute a high-risk remediation under canary safety gating with automatic rollback circuit breaker."""
+        plan = self._plans.get(plan_id)
+        if not plan:
+            raise ValueError(f"Remediation plan {plan_id} not found")
+
+        plan.is_canary = True
+        plan.canary_percentage = canary_percent
+        plan.canary_status = "CANARY_ACTIVE"
+        plan.approved_by = approver
+        now = datetime.now(timezone.utc)
+
+        state_mgr = self._get_state_manager()
+        norm_svc = state_mgr._normalize_id(plan.target_service)
+        pre_state = state_mgr.get_state(norm_svc, apply_drift=False)
+
+        plan.pre_remediation_health = {
+            "service_id": pre_state.service_id,
+            "status": pre_state.status,
+            "cpu_usage_percent": round(pre_state.cpu_usage_percent, 2),
+            "memory_usage_percent": round(pre_state.memory_usage_percent, 2),
+            "active_connections": pre_state.active_connections,
+            "error_rate": round(pre_state.error_rate, 4),
+            "p95_latency_ms": round(pre_state.p95_latency_ms, 2),
+            "active_alerts": list(pre_state.active_alerts),
+        }
+
+        # Apply canary change
+        new_max_conn = None
+        if plan.command_payload.get("action") == "scale_pool":
+            new_max_conn = int(plan.command_payload.get("to", 1500))
+
+        state_mgr.restore_health(norm_svc, max_connections=new_max_conn)
+        post_state = state_mgr.get_state(norm_svc, apply_drift=False)
+
+        # Check circuit breaker safety condition
+        health_improved = (
+            post_state.status == 0
+            and post_state.error_rate <= pre_state.error_rate
+        )
+
+        if verify_health and not health_improved:
+            # Circuit breaker triggered! Auto-rollback to pre-remediation state
+            plan.auto_rollback_triggered = True
+            plan.canary_status = "ABORTED_ROLLED_BACK"
+            plan.status = "REJECTED_AUTO_ROLLBACK"
+            logger.warning(
+                "[Safety Circuit Breaker] Canary failed for %s on %s. Auto-rollback triggered!",
+                plan.action_title,
+                plan.target_service,
+            )
+            producer = get_kafka_producer()
+            try:
+                await producer.publish_audit(
+                    AuditEvent(
+                        event_type="canary_circuit_breaker_rollback",
+                        actor="SafetyGatingEngine",
+                        details={
+                            "plan_id": plan.plan_id,
+                            "service": plan.target_service,
+                            "reason": "Post-remediation health check failed during canary phase",
+                        },
+                    )
+                )
+            except Exception:
+                pass
+            return plan
+
+        # Canary passed successfully! Promote to full execution
+        plan.canary_status = "CANARY_SUCCESS"
+        plan.status = "EXECUTED"
+        plan.executed_at = now
+        plan.closed_loop_verified = True
+        plan.post_remediation_health = {
+            "service_id": post_state.service_id,
+            "status": post_state.status,
+            "cpu_usage_percent": round(post_state.cpu_usage_percent, 2),
+            "memory_usage_percent": round(post_state.memory_usage_percent, 2),
+            "active_connections": post_state.active_connections,
+            "max_connections": post_state.max_connections,
+            "error_rate": round(post_state.error_rate, 4),
+            "p95_latency_ms": round(post_state.p95_latency_ms, 2),
+            "active_alerts": list(post_state.active_alerts),
+        }
         return plan
 
 

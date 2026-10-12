@@ -257,6 +257,14 @@ class EvaluationMetrics(BaseModel):
     total_scenarios: int = 0
     passed: int = 0
     failed: int = 0
+    naive_baseline_accuracy: float | None = None
+    mean_pipeline_latency_ms: float | None = None
+    p95_pipeline_latency_ms: float | None = None
+    detection_events_processed: int = 0
+    suppression_tp: int = 0
+    suppression_fp: int = 0
+    suppression_tn: int = 0
+    suppression_fn: int = 0
 
 
 # ---------------------------------------------------------------------------

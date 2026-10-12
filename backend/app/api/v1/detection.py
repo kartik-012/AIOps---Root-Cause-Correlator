@@ -6,19 +6,16 @@ from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from app.dependencies import DBSession
-from app.engines.detection_engine import DetectionEngine
+from app.engines.detection_engine import DetectionEngine, get_shared_detection_engine
 from app.models.db_models import Anomaly, MetricRaw, Service
 from app.models.schemas import MetricIngest, MetricIngestResponse, AnomalyOut
 from app.api.v1.ws import broadcast_event
 
 router = APIRouter()
 
-# Global singleton DetectionEngine instance
-_detection_engine = DetectionEngine(alpha=0.3, base_threshold=2.5, min_samples=3)
-
 
 def get_detection_engine() -> DetectionEngine:
-    return _detection_engine
+    return get_shared_detection_engine()
 
 
 @router.post("/detection/ingest", response_model=MetricIngestResponse)

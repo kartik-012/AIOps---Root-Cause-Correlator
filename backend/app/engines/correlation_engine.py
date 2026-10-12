@@ -12,6 +12,7 @@ from typing import Any
 import networkx as nx
 
 from app.graph.dependency_graph import DependencyGraph
+from app.engines.suppression_engine import build_signature
  
 
 @dataclass
@@ -82,10 +83,22 @@ class CorrelationEngine:
         all_component_anomalies: list[AnomalyEvent],
         subgraph: nx.DiGraph,
     ) -> float:
-        """Compute root cause confidence from severity, time priority, and topology."""
+        """Compute root cause confidence from severity, temporal priority, and topology."""
         abs_z = abs(earliest_anomaly.z_score)
         severity_score = min(abs_z / 6.0, 1.0)
-        precedence_score = 1.0
+
+        # Compute real temporal precedence score in [0.0, 1.0] across the component's anomalies
+        if all_component_anomalies:
+            min_ts = min(a.detected_at for a in all_component_anomalies)
+            max_ts = max(a.detected_at for a in all_component_anomalies)
+            span_sec = (max_ts - min_ts).total_seconds()
+            if span_sec > 0.0:
+                lag_sec = max(0.0, (earliest_anomaly.detected_at - min_ts).total_seconds())
+                precedence_score = max(0.0, 1.0 - (lag_sec / span_sec))
+            else:
+                precedence_score = 1.0
+        else:
+            precedence_score = 1.0
 
         if len(subgraph) > 0:
             centrality = nx.degree_centrality(subgraph).get(candidate_id, 0.5)
@@ -207,8 +220,6 @@ class CorrelationEngine:
 
                 hour_bucket = float(root_earliest_anomaly.detected_at.hour // 6)
                 day_of_week = float(root_earliest_anomaly.detected_at.weekday())
-                srv_hash = float((abs(hash(root_cause_sid)) % 100) / 10.0)
-                metric_hash = float((abs(hash(root_cause_type)) % 10) / 1.0)
                 sev_z = float(abs(root_earliest_anomaly.z_score))
                 depth = float(len(propagation_list))
                 speed = 10.0
@@ -218,7 +229,15 @@ class CorrelationEngine:
                     diff_sec = max((t_last - t_first).total_seconds(), 1.0)
                     speed = round(diff_sec / len(sorted_by_time), 2)
 
-                sig = [hour_bucket, day_of_week, srv_hash, metric_hash, sev_z, depth, speed]
+                sig = build_signature(
+                    hour_bucket=hour_bucket,
+                    day_of_week=day_of_week,
+                    service_id=root_cause_sid,
+                    metric_type=root_earliest_anomaly.metric_type,
+                    severity_z=sev_z,
+                    depth=depth,
+                    speed=speed,
+                )
 
                 raw_incidents.append({
                     "incident_id": str(uuid.uuid4()),

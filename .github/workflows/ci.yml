@@ -54,8 +54,8 @@ jobs:
 
       - name: Lint with Flake8
         run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Stop the build if there are Python syntax errors or undefined names across app and tests
+          flake8 backend/app backend/tests --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run Database Migrations
         env:
@@ -78,13 +78,13 @@ jobs:
           "
           alembic upgrade head
 
-      - name: Execute Full Test Suite
+      - name: Execute Full Test Suite with Coverage
         env:
           DATABASE_URL: postgresql://aiops:aiops_secret@127.0.0.1:5433/aiops_db
           REDIS_URL: redis://127.0.0.1:6380/0
         run: |
           cd backend
-          python -m pytest tests/ -v --tb=short
+          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
   frontend-build:
     name: Frontend Production Build & Bundle Verification

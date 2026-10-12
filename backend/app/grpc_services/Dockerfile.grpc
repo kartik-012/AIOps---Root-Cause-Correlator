@@ -1,18 +1,44 @@
-FROM python:3.12-slim
+# ==============================================================================
+# Stage 1: Builder — install dependencies into an isolated virtual environment
+# ==============================================================================
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /build
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ==============================================================================
+# Stage 2: Production Runtime — minimal image running as non-root UID 10001
+# ==============================================================================
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN groupadd --gid 10001 aiops && \
+    useradd --uid 10001 --gid aiops --shell /usr/sbin/nologin --create-home aiops
 
-# Copy application code
-COPY ./app /app/app
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=aiops:aiops ./app /app/app
 
-# Set python path
-ENV PYTHONPATH=/app
+USER aiops
 
 EXPOSE 50051
 EXPOSE 8000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=5 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000')" || exit 1
 
 CMD ["python", "-m", "app.grpc_services.diagnostic_server"]

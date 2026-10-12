@@ -98,7 +98,11 @@ The **AIOps Root Cause Correlator** automatically isolated the originating node 
       <div className="modal-content post-mortem-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <span className="eyebrow">AI EXECUTIVE REPORTING</span>
+            <span className="eyebrow">
+              {report?.generation_mode === 'llm_grounded'
+                ? `✨ GROUNDED LLM (${report?.model_used || 'VERIFIED'})`
+                : '⚙️ EVIDENCE-GROUNDED RCA SYNTHESIZER'}
+            </span>
             <h2>Incident Post-Mortem & RCA Document</h2>
           </div>
           <button className="close-btn" onClick={onClose}>
@@ -121,15 +125,19 @@ The **AIOps Root Cause Correlator** automatically isolated the originating node 
                 </div>
                 <div className="pm-stat-box">
                   <small>MEAN TIME TO DETECT</small>
-                  <b className="green-text">{report.mttd} (Sub-second)</b>
+                  <b className="green-text">{report.mttd}</b>
                 </div>
                 <div className="pm-stat-box">
                   <small>REVENUE EXPOSURE</small>
                   <b className="amber-text">{report.financial_exposure}</b>
                 </div>
                 <div className="pm-stat-box">
-                  <small>EST. DURATION</small>
-                  <b>{report.mttr}</b>
+                  <small>GROUNDING VERIFICATION</small>
+                  <b className="green-text">
+                    {report.grounding_verified !== false
+                      ? `✓ Verified (${report.evidence_citations?.length || 2} Citations)`
+                      : '⚠️ Fallback Enforced'}
+                  </b>
                 </div>
               </div>
 

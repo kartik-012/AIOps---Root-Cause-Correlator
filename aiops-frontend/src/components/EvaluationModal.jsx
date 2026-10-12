@@ -70,11 +70,19 @@ export function EvaluationModal({ isOpen, onClose }) {
                 <b>{(metrics.blast_radius_accuracy * 100).toFixed(1)}%</b>
               </div>
               <div className="metric-card full-width">
-                <small>BENCHMARK RESULT</small>
+                <small>BENCHMARK RESULT & PIPELINE VERIFICATION</small>
                 <b>
-                  {metrics.passed} / {metrics.total_scenarios} Scenarios Passed · Avg Detection Time{' '}
-                  {metrics.mean_detection_time_seconds}s
+                  {metrics.passed} / {metrics.total_scenarios} Scenarios Passed · p95 Compute{' '}
+                  {metrics.p95_pipeline_latency_ms ?? (metrics.mean_detection_time_seconds * 1000).toFixed(2)}ms
                 </b>
+                {metrics.naive_baseline_accuracy !== undefined && metrics.naive_baseline_accuracy !== null && (
+                  <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: '4px' }}>
+                    Graph Top-1 ({(metrics.top1_accuracy * 100).toFixed(1)}%) vs Naive Z-Score Baseline (
+                    {(metrics.naive_baseline_accuracy * 100).toFixed(1)}%) · EWMA Samples:{' '}
+                    {metrics.detection_events_processed} · Suppression Matrix (TP:{metrics.suppression_tp} TN:
+                    {metrics.suppression_tn} FP:{metrics.suppression_fp} FN:{metrics.suppression_fn})
+                  </div>
+                )}
               </div>
             </div>
           )}

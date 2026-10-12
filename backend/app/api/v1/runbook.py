@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
 from app.dependencies import DBSession
+from app.security import verify_operator_access
 from app.models.db_models import Incident, RunbookSuggestion
 from app.models.schemas import RunbookResponse, RunbookApproveResponse
 
@@ -33,7 +34,7 @@ def get_runbook(root_cause_type: str):
         return RunbookResponse(
             title=f"Incident Remediation: {root_cause_type.replace('_', ' ').title()}",
             severity="medium",
-            suggested_action=f"Investigate anomalous telemetry on affected service, inspect container logs, and verify recent configuration deployments.",
+            suggested_action="Investigate anomalous telemetry on affected service, inspect container logs, and verify recent configuration deployments.",
             steps=[
                 "Check pod status and restart count",
                 "Inspect recent application logs for unhandled exceptions",
@@ -54,7 +55,11 @@ def get_runbook(root_cause_type: str):
 
 
 @router.post("/runbook/{incident_id}/approve", response_model=RunbookApproveResponse)
-def approve_runbook(incident_id: uuid.UUID, db: DBSession):
+def approve_runbook(
+    incident_id: uuid.UUID,
+    db: DBSession,
+    _operator: str = Depends(verify_operator_access),
+):
     """Human-in-the-loop approval of suggested runbook action before any remediation proceeds."""
     inc = db.scalar(select(Incident).where(Incident.id == incident_id))
     if not inc:

@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone, timedelta
 import uuid
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.dependencies import DBSession
+from app.security import verify_operator_access
 from app.models.db_models import Service, Anomaly, MetricRaw
 from app.api.v1.ws import broadcast_event
 from app.kafka import get_kafka_producer
@@ -14,14 +15,31 @@ from app.kafka.events import TelemetryEvent
 
 router = APIRouter()
 
+ALLOWED_CHAOS_SCENARIOS: set[str] = {
+    "db_pool_exhaustion",
+    "memory_leak",
+    "cpu_spike",
+    "network_latency",
+    "reset",
+}
+
 
 class ChaosInjectRequest(BaseModel):
     scenario: str  # 'db_pool_exhaustion', 'memory_leak', 'cpu_spike', 'network_latency', 'reset'
 
 
 @router.post("/chaos/inject")
-async def inject_chaos(payload: ChaosInjectRequest, db: DBSession):
-    """Inject a live failure scenario into the microservice cluster."""
+async def inject_chaos(
+    payload: ChaosInjectRequest,
+    db: DBSession,
+    _operator: str = Depends(verify_operator_access),
+):
+    """Inject a live failure scenario into the microservice cluster (protected by operator auth & rate limit)."""
+    if payload.scenario not in ALLOWED_CHAOS_SCENARIOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid chaos scenario '{payload.scenario}'. Allowed: {sorted(ALLOWED_CHAOS_SCENARIOS)}",
+        )
     try:
         services = db.scalars(select(Service)).all()
         svc_map = {s.name: s for s in services}

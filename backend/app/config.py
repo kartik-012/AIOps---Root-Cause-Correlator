@@ -21,10 +21,24 @@ class Settings(BaseSettings):
     # Suppression engine defaults
     SUPPRESSION_SIMILARITY_THRESHOLD: float = 0.85
 
-    # API settings
+    # Grounded Post-Mortem & LLM settings (optional; falls back to deterministic synthesizer)
+    LLM_API_KEY: str | None = None
+    LLM_PROVIDER: str = "openai"  # 'openai', 'groq', or 'gemini'
+    LLM_MODEL: str = "gpt-4o-mini"
+    REVENUE_PER_WEIGHT_MINUTE: float = 150.0
+
+    # API & Security settings
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "AIOps Root Cause Correlator"
     VERSION: str = "1.0.0"
+    CORS_ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "https://aiops-root-cause-correlator.vercel.app",
+    ]
+    API_AUTH_TOKEN: str | None = None
+    REQUIRE_AUTH_FOR_MUTATIONS: bool = False
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

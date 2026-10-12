@@ -1,15 +1,158 @@
-"""Slack & Discord Webhook Notification Service for AIOps Incident Alerts."""
+"""Slack & Discord Webhook Notification Service with Multi-Layer SSRF Defense.
 
+Enforces:
+1. Strict HTTPS scheme & port 443 validation (blocks http://, file://, gopher://, non-standard ports).
+2. Strict hostname & path prefix allowlisting (hooks.slack.com/services/..., discord.com/api/webhooks/...).
+3. Literal IP & internal hostname blocking (127.0.0.0/8, 169.254.169.254 cloud metadata, RFC1918, IPv6 ::1/fe80::).
+4. DNS resolution inspection (prevents DNS rebinding to private/loopback/link-local IPs).
+5. Redirect blocking (follow_redirects=False) and response body sanitization (prevents Full-Read SSRF exfiltration).
+"""
+
+from __future__ import annotations
+
+import ipaddress
 import os
-import httpx
+import socket
 from typing import Any
+from urllib.parse import urlparse
+
+import httpx
+
+
+ALLOWED_WEBHOOK_HOST_PATHS: dict[str, str] = {
+    "hooks.slack.com": "/services/",
+    "discord.com": "/api/webhooks/",
+    "discordapp.com": "/api/webhooks/",
+}
+
+BLOCKED_HOSTNAMES: set[str] = {
+    "localhost",
+    "localhost.localdomain",
+    "metadata.google.internal",
+    "metadata",
+    "instance-data",
+}
+
+
+class WebhookSecurityError(ValueError):
+    """Raised when a webhook URL fails SSRF validation."""
+
+
+def _is_non_public_ip(ip_str: str) -> bool:
+    """Return True if ip_str is private, loopback, link-local (169.254.x.x), multicast, reserved, or non-global."""
+    try:
+        ip_obj = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return True
+
+    # Unwrap IPv4-mapped IPv6 addresses such as ::ffff:127.0.0.1 or ::ffff:169.254.169.254
+    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped is not None:
+        ip_obj = ip_obj.ipv4_mapped
+
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
+def validate_webhook_url(url: str, resolve_dns: bool = True) -> str:
+    """Validate a webhook URL against SSRF, cloud metadata access, and DNS rebinding.
+
+    Returns the normalized URL if valid, or raises WebhookSecurityError.
+    """
+    if not url or not isinstance(url, str):
+        raise WebhookSecurityError("Webhook URL must be a non-empty string.")
+
+    cleaned = url.strip()
+    parsed = urlparse(cleaned)
+
+    # 1. Enforce HTTPS scheme only
+    if parsed.scheme.lower() != "https":
+        raise WebhookSecurityError(
+            f"SSRF Protection: Disallowed URL scheme '{parsed.scheme}'. Only 'https' is permitted."
+        )
+
+    # 2. Reject embedded credentials (e.g., https://hooks.slack.com@169.254.169.254/)
+    if parsed.username is not None or parsed.password is not None:
+        raise WebhookSecurityError("SSRF Protection: Embedded URL credentials are forbidden.")
+
+    hostname = (parsed.hostname or "").strip().lower().rstrip(".")
+    if not hostname:
+        raise WebhookSecurityError("SSRF Protection: Webhook URL is missing a valid hostname.")
+
+    # 3. Reject non-443 ports
+    if parsed.port is not None and parsed.port != 443:
+        raise WebhookSecurityError(
+            f"SSRF Protection: Non-standard port {parsed.port} is forbidden. Only port 443 is permitted."
+        )
+
+    # 4. Block internal/metadata hostnames and any literal IP address
+    if (
+        hostname in BLOCKED_HOSTNAMES
+        or hostname.endswith(".local")
+        or hostname.endswith(".internal")
+        or hostname.endswith(".localhost")
+    ):
+        raise WebhookSecurityError(f"SSRF Protection: Internal hostname '{hostname}' is blocked.")
+
+    try:
+        ipaddress.ip_address(hostname)
+        # If this succeeds, hostname is a raw IP literal (e.g., 169.254.169.254 or 127.0.0.1)
+        raise WebhookSecurityError(
+            f"SSRF Protection: Raw IP literal '{hostname}' is forbidden for webhook targets."
+        )
+    except ValueError:
+        # Expected: hostname is a domain name, not an IP literal
+        pass
+
+    # 5. Enforce strict domain + path prefix allowlist
+    if hostname not in ALLOWED_WEBHOOK_HOST_PATHS:
+        allowed_list = ", ".join(sorted(ALLOWED_WEBHOOK_HOST_PATHS.keys()))
+        raise WebhookSecurityError(
+            f"SSRF Protection: Host '{hostname}' is not in the approved webhook allowlist ({allowed_list})."
+        )
+
+    required_prefix = ALLOWED_WEBHOOK_HOST_PATHS[hostname]
+    path = parsed.path or ""
+    if not path.startswith(required_prefix) or len(path) <= len(required_prefix) or ".." in path:
+        raise WebhookSecurityError(
+            f"SSRF Protection: Path '{path}' does not match required prefix '{required_prefix}<token>'."
+        )
+
+    # 6. Resolve DNS and verify all resolved IPs are globally routable public addresses
+    if resolve_dns:
+        try:
+            addr_info = socket.getaddrinfo(hostname, 443, type=socket.SOCK_STREAM)
+        except socket.gaierror as exc:
+            raise WebhookSecurityError(
+                f"SSRF Protection: DNS resolution failed for '{hostname}': {exc}"
+            ) from exc
+
+        if not addr_info:
+            raise WebhookSecurityError(f"SSRF Protection: No DNS records resolved for '{hostname}'.")
+
+        for entry in addr_info:
+            sockaddr = entry[4]
+            resolved_ip = str(sockaddr[0])
+            if _is_non_public_ip(resolved_ip):
+                raise WebhookSecurityError(
+                    f"SSRF Protection: Host '{hostname}' resolved to non-public IP '{resolved_ip}' (DNS rebinding blocked)."
+                )
+
+    return cleaned
 
 
 class SlackNotifier:
-    """Dispatches rich incident correlation cards to Slack or Discord webhooks."""
+    """Dispatches rich incident correlation cards to verified Slack or Discord webhooks."""
 
-    def __init__(self, default_webhook_url: str | None = None):
+    def __init__(self, default_webhook_url: str | None = None, resolve_dns: bool = True):
         self.default_webhook_url = default_webhook_url or os.getenv("SLACK_WEBHOOK_URL")
+        self.resolve_dns = resolve_dns
 
     async def send_incident_alert(
         self,
@@ -21,31 +164,47 @@ class SlackNotifier:
         impact_score: float,
         webhook_url: str | None = None,
     ) -> dict[str, Any]:
-        """Format and dispatch an alert card to Slack/Discord."""
-        target_url = webhook_url or self.default_webhook_url
-        if not target_url:
-            return {
-                "status": "simulated",
-                "message": "No webhook URL configured. Simulated dispatch successful.",
-                "payload": self._build_slack_payload(
-                    incident_id, root_cause_service, root_cause_type, confidence, affected_services, impact_score
-                ),
-            }
-
+        """Validate target URL against SSRF, format payload, and dispatch to Slack/Discord."""
+        target_url = (webhook_url or self.default_webhook_url or "").strip()
         payload = self._build_slack_payload(
             incident_id, root_cause_service, root_cause_type, confidence, affected_services, impact_score
         )
 
+        if not target_url:
+            return {
+                "status": "simulated",
+                "message": "No webhook URL configured. Simulated dispatch successful.",
+                "ssrf_verified": True,
+                "payload": payload,
+            }
+
+        # Enforce multi-layer SSRF validation before opening any network socket
+        validated_url = validate_webhook_url(target_url, resolve_dns=self.resolve_dns)
+
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                res = await client.post(target_url, json=payload)
+            # follow_redirects=False prevents 301/302 redirect bypass to internal metadata IPs
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=False) as client:
+                res = await client.post(validated_url, json=payload)
+                delivered = 200 <= res.status_code < 300
+                # Never return raw upstream `res.text` to prevent Full-Read SSRF response exfiltration
                 return {
-                    "status": "delivered" if res.status_code == 200 else "failed",
+                    "status": "delivered" if delivered else "failed",
                     "http_status": res.status_code,
-                    "response": res.text,
+                    "delivery_ack": "accepted" if delivered else "rejected_by_upstream",
+                    "ssrf_verified": True,
                 }
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
+        except httpx.TimeoutException:
+            return {
+                "status": "error",
+                "error": "Upstream webhook timed out after 5.0s",
+                "ssrf_verified": True,
+            }
+        except httpx.RequestError:
+            return {
+                "status": "error",
+                "error": "Upstream webhook network transport error",
+                "ssrf_verified": True,
+            }
 
     def _build_slack_payload(
         self,

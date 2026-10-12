@@ -5,10 +5,11 @@ and exposes fault injection endpoints for the simulator.
 """
 
 import os
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 import httpx
 
 from app.grpc_services.diagnostic_client import DiagnosticClient
+from app.security import verify_operator_access
 
 GRPC_TARGET = os.getenv("GRPC_DIAGNOSTIC_TARGET", "localhost:50051")
 INTERNAL_SIM_API = os.getenv("INTERNAL_SIM_API", "http://localhost:8000")
@@ -39,7 +40,7 @@ async def get_all_services_health():
     results = {}
     for svc in services:
         try:
-            health = await _client.get_health(svc)
+            health = await _client.get_health(svc, timeout=0.4)
         except Exception:
             health = None
 
@@ -64,7 +65,7 @@ async def get_all_services_health():
 @router.get("/diagnostics/{service_id}/health")
 async def get_service_health(service_id: str):
     """Query gRPC for a single service's health snapshot."""
-    health = await _client.get_health(service_id)
+    health = await _client.get_health(service_id, timeout=0.4)
     if not health:
         raise HTTPException(status_code=503, detail=f"Diagnostic service unavailable for {service_id}")
     return health
@@ -77,7 +78,7 @@ async def get_service_resources(
 ):
     """Query gRPC for detailed resource metrics of a service."""
     metric_list = [m.strip() for m in metrics.split(",")]
-    resources = await _client.get_resources(service_id, metric_list)
+    resources = await _client.get_resources(service_id, metric_list, timeout=0.4)
     if not resources:
         raise HTTPException(status_code=503, detail=f"Diagnostic service unavailable for {service_id}")
     return {"service_id": service_id, "metrics": resources}
@@ -87,6 +88,7 @@ async def get_service_resources(
 async def inject_fault(
     service_id: str,
     fault_type: str = Query(..., description="One of: db_pool_exhaustion, memory_leak, cpu_spike, network_latency, disk_io_saturation"),
+    _operator: str = Depends(verify_operator_access),
 ):
     """Inject a fault into the simulated gRPC diagnostic service."""
     async with httpx.AsyncClient(timeout=5.0) as client:
@@ -101,7 +103,10 @@ async def inject_fault(
 
 
 @router.post("/diagnostics/{service_id}/restore")
-async def restore_health(service_id: str):
+async def restore_health(
+    service_id: str,
+    _operator: str = Depends(verify_operator_access),
+):
     """Restore a simulated service to healthy state."""
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:

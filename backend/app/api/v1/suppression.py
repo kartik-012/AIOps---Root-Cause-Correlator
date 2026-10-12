@@ -29,9 +29,9 @@ def get_suppression_engine(db: DBSession) -> SuppressionEngine:
 
 @router.post("/suppression/check", response_model=SuppressionCheckResponse)
 def check_suppression(payload: SuppressionCheckRequest, db: DBSession):
-    """Check a 7-dim anomaly signature against known false positives and log if matched."""
+    """Check a 7-dim anomaly signature against known false positives via pgvector SQL (with memory fallback)."""
     engine = get_suppression_engine(db)
-    decision = engine.evaluate(payload.anomaly_signature)
+    decision = engine.evaluate(payload.anomaly_signature, db=db)
 
     matched_uuid = uuid.UUID(decision.matched_incident_id) if decision.matched_incident_id else None
 

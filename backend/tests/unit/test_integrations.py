@@ -34,5 +34,8 @@ def test_llm_post_mortem_generator():
     )
     assert "INCIDENT POST-MORTEM REPORT" in report["markdown"]
     assert "payment-service" in report["markdown"]
-    assert report["mttd"] == "0.78s"
-    assert "$36,960" in report["financial_exposure"]
+    assert report["mttd"] == "0.42s"
+    assert report["grounding_verified"] is True
+    assert "$41,580" in report["financial_exposure"]
+
+

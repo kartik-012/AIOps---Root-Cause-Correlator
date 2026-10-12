@@ -105,7 +105,7 @@ services:
       GRPC_DIAGNOSTIC_TARGET: grpc-diagnostics:50051
       INTERNAL_SIM_API: http://grpc-diagnostics:8000
       SECRET_KEY: aiops_super_secret_production_key_2026
-      DEBUG: "true"
+      DEBUG: "false"
       EWMA_ALPHA: "0.3"
       Z_SCORE_THRESHOLD: "2.0"
       SUPPRESSION_SIMILARITY_THRESHOLD: "0.85"
@@ -120,7 +120,13 @@ services:
         condition: service_healthy
       grpc-diagnostics:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
 
   # AIOps React 18 + Three.js Neural Mesh Frontend
   frontend:
@@ -131,7 +137,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       - VITE_API_URL=http://localhost:8001
 

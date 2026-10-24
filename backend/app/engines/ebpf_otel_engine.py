@@ -56,6 +56,10 @@ class EbpfKernelReport:
     hooks: list[EbpfHookMetric] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+    def has_critical_hooks(self) -> bool:
+        """Return True if any attached eBPF kprobe or tracepoint flagged CRITICAL status."""
+        return any(hook.status == "CRITICAL" for hook in self.hooks)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "service_id": self.service_id,

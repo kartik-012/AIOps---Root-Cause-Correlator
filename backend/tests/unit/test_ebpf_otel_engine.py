@@ -39,3 +39,11 @@ def test_ebpf_kernel_probe_profiles_distinguish_network_cpu_and_db_faults():
     db_report = engine.inspect_service_kernel_probes("payment-service", "db_pool_exhaustion")
     assert db_report.socket_listen_drops > 100
     assert "futex" in db_report.kernel_verdict
+
+
+def test_ebpf_kernel_report_has_critical_hooks():
+    """Verify that reports with elevated kprobes correctly report critical hooks present."""
+    engine = EbpfKernelProbeEngine()
+    db_report = engine.inspect_service_kernel_probes("payment-service", "db_pool_exhaustion")
+    assert db_report.has_critical_hooks() is True
+

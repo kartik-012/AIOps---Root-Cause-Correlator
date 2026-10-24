@@ -203,6 +203,27 @@ flowchart TD
     end
 ```
 
+### 🔄 End-to-End Incident Triage Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Microservice Mesh
+    participant Kernel as Linux eBPF CO-RE
+    participant Kafka as Kafka KRaft Bus
+    participant Engine as Causal Inference Engine
+    participant Admin as Mobile Governance (Phone)
+
+    App->>Kafka: Stream raw metrics (RPS, errors, latency)
+    App->>Kernel: Socket contention & thread block
+    Kernel->>Engine: sys_enter_futex + tcp_retransmit telemetry
+    App->>Engine: OpenTelemetry OTLP /v1/traces payload
+    Engine->>Engine: Decompose critical-path spans (<45ms)
+    Engine->>Admin: Push HMAC-signed Mobile Incident Dossier
+    Admin->>Engine: 1% Shadow Dry-Run & 5% Canary Approval
+    Engine->>App: Apply rollback-guarded circuit breaker
+```
+
 ---
 
 ## 🚀 Interactive Chaos Studio Walkthrough

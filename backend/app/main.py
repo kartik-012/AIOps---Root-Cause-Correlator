@@ -178,11 +178,15 @@ def root():
 
 @app.get("/health", tags=["Health"])
 def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with UTC ISO timestamp and environment metadata."""
+    from datetime import datetime, timezone
+
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "environment": getattr(settings, "ENVIRONMENT", "production"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

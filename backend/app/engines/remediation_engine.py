@@ -392,7 +392,8 @@ class RemediationEngine:
             raise ValueError(f"Remediation plan {plan_id} not found")
 
         plan.is_canary = True
-        plan.canary_percentage = canary_percent
+        effective_canary_percent = max(1, min(100, int(canary_percent)))
+        plan.canary_percentage = effective_canary_percent
         plan.canary_status = "CANARY_ACTIVE"
         plan.approved_by = approver
         now = datetime.now(timezone.utc)

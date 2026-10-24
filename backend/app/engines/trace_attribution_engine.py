@@ -8,7 +8,10 @@ and isolates the exact operation/SQL/gRPC span responsible for tail latency.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -148,6 +151,14 @@ class TraceAttributionEngine:
         bottleneck_span = max(spans, key=_bottleneck_score)
         bottleneck_excl = exclusive_by_id[bottleneck_span.span_id]
         bottleneck_pct = min(100.0, (bottleneck_excl / total_duration) * 100.0)
+        logger.debug(
+            "Analyzed %d spans; bottleneck isolated: %s (%s) with exclusive self-time %.2fms (%.1f%%)",
+            len(spans),
+            bottleneck_span.service_id,
+            bottleneck_span.operation_name,
+            bottleneck_excl,
+            bottleneck_pct,
+        )
 
         # Reconstruct critical path from root down to bottleneck leaf
         critical_span_ids: set[str] = set()

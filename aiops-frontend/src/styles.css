@@ -3391,6 +3391,16 @@ button.ghost:hover,
 
 .otlp-ingest-pill-btn:hover {
   background: rgba(56, 189, 248, 0.28);
+  border-color: rgba(56, 189, 248, 0.7);
+}
+
+.otlp-ingest-pill-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
+.otlp-ingest-pill-btn:active {
+  transform: scale(0.97);
 }
 
 .otlp-ingest-toast {

@@ -337,7 +337,12 @@ export function AdminGovernanceModal({ isOpen, onClose, incidentDetail, onApprov
                       <small style={{ color: '#38bdf8', fontWeight: 600 }}>
                         📲 SEND TO REAL PHONE (SCAN QR OR PUSH)
                       </small>
-                      <button className="gov-copy-link-btn" onClick={handleCopyMobileLink}>
+                      <button
+                        className="gov-copy-link-btn"
+                        onClick={handleCopyMobileLink}
+                        aria-label="Copy mobile magic link to clipboard"
+                        title="Copy mobile magic link to clipboard"
+                      >
                         📋 Copy Mobile Link
                       </button>
                     </div>
@@ -347,6 +352,7 @@ export function AdminGovernanceModal({ isOpen, onClose, incidentDetail, onApprov
                       value={webhookInput}
                       onChange={(e) => setWebhookInput(e.target.value)}
                       className="gov-input"
+                      aria-label="Discord or Slack webhook URL for phone push notification"
                     />
                     <div className="gov-email-btn-row">
                       <input
@@ -355,8 +361,14 @@ export function AdminGovernanceModal({ isOpen, onClose, incidentDetail, onApprov
                         value={emailInput}
                         onChange={(e) => setEmailInput(e.target.value)}
                         className="gov-input"
+                        aria-label="Admin email address for incident dispatch"
                       />
-                      <button className="gov-send-phone-btn" onClick={handleSendToPhone}>
+                      <button
+                        className="gov-send-phone-btn"
+                        onClick={handleSendToPhone}
+                        aria-label="Push incident dossier to mobile device"
+                        title="Dispatch mobile notification to configured webhook or email"
+                      >
                         Push to Phone ↗
                       </button>
                     </div>

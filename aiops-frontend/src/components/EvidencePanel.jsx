@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../hooks/useApi'
 import { sound } from '../utils/audio'
@@ -18,10 +18,11 @@ export function EvidencePanel({ explanation, onEvidenceClick }) {
     { text: 'pgvector HNSW cosine match (tenant-isolated)', time: '0.94' },
   ]
 
-  const evidenceItems =
-    explanation?.evidence && explanation.evidence.length > 0
+  const evidenceItems = useMemo(() => {
+    return explanation?.evidence && explanation.evidence.length > 0
       ? explanation.evidence.map((e) => (typeof e === 'string' ? { text: e, time: 'VERIFIED' } : e))
       : defaultEvidence
+  }, [explanation])
 
   const loadTraceWaterfall = async () => {
     setLoadingTrace(true)

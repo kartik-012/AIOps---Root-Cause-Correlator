@@ -50,3 +50,16 @@ Before submitting a Pull Request, please ensure:
 - `backend/app/api/v1/`: Thin asynchronous FastAPI route handlers with threadpool offloading.
 - `backend/app/models/`: SQLAlchemy 2.0 models and Pydantic v2 schemas.
 - `aiops-frontend/src/`: React 18, Three.js WebGL spatial topology, and Framer Motion glassmorphic UI.
+
+
+---
+
+## ⚙️ Environment Variables Reference
+
+| Variable | Default Value | Purpose |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `postgresql://aiops:aiops_secret@localhost:5433/aiops_db` | PostgreSQL connection string with pgvector extension |
+| `REDIS_URL` | `redis://localhost:6380/0` | Redis caching & pub/sub broker |
+| `API_V1_PREFIX` | `/api/v1` | Base route prefix for REST endpoints |
+| `ENVIRONMENT` | `production` | Active deployment environment label |
+| `GRPC_DIAGNOSTIC_TARGET` | `localhost:50051` | Embedded gRPC diagnostic mesh loopback target |

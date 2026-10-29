@@ -3,6 +3,15 @@
 Uses NetworkX dependency topology to isolate independent incident components
 and locate the causal root for each component via graph topology and temporal precedence.
 Handles adversarial cases where independent root causes converge on a shared caller.
+
+Topology Flow Walk:
+    [Root Cause: Saturated Callee]  <--- Zero anomalous downstream callees (leaf)
+               │
+               ▼  (Edge Weight = Cov(M_u, M_v) * log(1 + RPS))
+       [Intermediate Service]
+               │
+               ▼
+       [Ingress API Gateway]        <--- Hub bias penalized by MicroRCA++ Personalization
 """
 
 from dataclasses import dataclass, field

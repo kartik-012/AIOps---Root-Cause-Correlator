@@ -56,3 +56,14 @@ Hiring managers and Staff Engineers spend ~60–90 seconds reviewing a live demo
 | **Kernel Verification** | `Zero-instrumentation` | Linux eBPF CO-RE (`sys_enter_futex`, `tcp_retransmit_skb`) |
 | **Automated Test Coverage** | `118 unit & e2e tests` | Pytest with async fixtures across all 4 tier services |
 
+
+
+---
+
+## 🚦 5. SRE Incident Severity & Escalation Matrix
+
+| Severity Tier | Revenue Impact | Automated Action | Governance Approval |
+| :--- | :--- | :--- | :--- |
+| **P1 - Critical** | > $5,000 / min | 1% Shadow Dry-Run + Mobile Alert | Principal SRE QR / Break-Glass 5% Canary |
+| **P2 - Degraded** | $500 - $5,000 / min | Fourier EWMA Anomaly Isolation | Thompson Sampling Ranked Runbook |
+| **P3 - Warning** | < $500 / min | Telemetry Suppression (Cosine Memory) | SRE Auto-Resolution with Audit Log |

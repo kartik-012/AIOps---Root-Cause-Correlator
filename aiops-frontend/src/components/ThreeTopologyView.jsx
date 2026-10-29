@@ -548,12 +548,16 @@ export function ThreeTopologyView({ graphData, activeIncident, selectedService, 
         <button
           className={`cam-btn ${cameraMode === 'orbit' ? 'active' : ''}`}
           onClick={() => handleCameraPreset('orbit')}
+          title="Toggle 360° continuous camera auto-orbit"
+          aria-label="360° Auto-Orbit"
         >
           🔄 360° Auto-Orbit
         </button>
         <button
           className={`cam-btn ${cameraMode === 'root' ? 'active' : ''}`}
           onClick={() => handleCameraPreset('root')}
+          title="Align 3D camera viewport to isolated root cause node"
+          aria-label="Focus Root Cause"
         >
           🎯 Focus Root Cause
         </button>

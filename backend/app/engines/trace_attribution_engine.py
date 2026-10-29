@@ -27,6 +27,9 @@ class TraceSpan:
     status_code: str = "OK"  # "OK", "ERROR", "DEADLINE_EXCEEDED"
     attributes: dict[str, Any] = field(default_factory=dict)
 
+    def __repr__(self) -> str:
+        return f"<TraceSpan {self.service_id}:{self.operation_name} dur={self.duration_ms:.1f}ms status={self.status_code}>"
+
 
 @dataclass
 class SpanAttributionNode:

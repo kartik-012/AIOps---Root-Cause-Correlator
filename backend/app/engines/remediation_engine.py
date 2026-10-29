@@ -61,6 +61,10 @@ class RemediationPlan:
             "canary_status": self.canary_status,
         }
 
+    def is_high_risk(self) -> bool:
+        """Return True if this remediation plan carries HIGH operational risk requiring governance gating."""
+        return self.risk_level.upper() == "HIGH" 
+
 
 RECOMMENDED_ACTIONS = {
     "db_connection_exhaustion": {

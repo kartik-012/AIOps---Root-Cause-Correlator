@@ -138,6 +138,17 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-API-Key", "Accept"],
 )
 
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    """Inject high-resolution latency header into HTTP response for SRE observability."""
+    import time
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time_ms = (time.perf_counter() - start_time) * 1000.0
+    response.headers["X-Process-Time-Ms"] = f"{process_time_ms:.2f}"
+    return response
+
+
 # Mount all v1 routers
 prefix = settings.API_V1_PREFIX
 app.include_router(services.router, prefix=prefix, tags=["Services"])

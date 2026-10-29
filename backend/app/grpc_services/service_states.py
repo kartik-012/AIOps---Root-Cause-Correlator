@@ -96,6 +96,7 @@ class ServiceStateManager:
 
     @staticmethod
     def _normalize_id(service_id: str) -> str:
+        """Normalize arbitrary service identifier strings into standard lowercase hyphenated slug format."""
         return (service_id or "").strip().lower().replace(" ", "-")
 
     def _initialize_services(self):

@@ -123,3 +123,16 @@ async def test_feature_d_automated_chaos_gameday_scenario_runner():
     assert report.trace_critical_path["bottleneck_service"] == "payment-service"
     assert report.canary_remediation["canary_status"] == "CANARY_SUCCESS"
     assert report.bandit_posterior["trials"] >= 1
+
+
+def test_feature_b_diurnal_baseline_bounds():
+    """Verify diurnal baseline prediction maintains valid numerical bounds across 24 hours."""
+    from app.engines.detection_engine import DiurnalSeasonalBaseline
+    diurnal = DiurnalSeasonalBaseline()
+    for hour in range(24):
+        dt = datetime(2026, 10, 29, hour, 0, tzinfo=timezone.utc)
+        expected, z = diurnal.predict_and_score(dt, 25.0)
+        assert isinstance(expected, (int, float))
+        assert isinstance(z, (int, float))
+        assert not math.isnan(expected)
+        assert not math.isnan(z)

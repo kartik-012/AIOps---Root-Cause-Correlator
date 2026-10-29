@@ -302,6 +302,8 @@ python -m pytest tests/ -v
 | `GET` | `/api/v1/runbook/{type}/bandit-rankings` | Ranks runbook actions via online Beta-Bernoulli Thompson Sampling bandit |
 | `POST` | `/api/v1/eval/benchmark-100-node` | Runs 100-node microservice DAG correlation scalability benchmark ($p_{50}/p_{95}/p_{99}$) |
 | `GET` | `/api/v1/diagnostics/all` | Queries gRPC diagnostic mesh for real-time CPU, memory, and p95 latency |
+| `GET` | `/api/v1/diagnostics/ebpf/{id}` | Inspects Linux eBPF CO-RE kernel probes (sys_enter_futex, tcp_retransmit_skb) |
+| `POST` | `/api/v1/diagnostics/otlp/v1/traces` | Standards-compliant OpenTelemetry OTLP/HTTP JSON /v1/traces trace receiver |
 | `GET` | `/api/v1/kafka/status` | Returns Kafka KRaft connection status and bootstrap server endpoints |
 | `POST` | `/api/v1/kafka/publish-telemetry` | Publishes telemetry metrics directly into the Kafka `service.telemetry` topic |
 | `POST` | `/graphql` | GraphQL control plane query and remediation mutation endpoint |

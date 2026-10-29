@@ -45,6 +45,13 @@ def test_feature_a_parallel_overlapping_child_spans_interval_merging():
     assert abs(by_id["root"].exclusive_duration_ms - 20.0) < 1e-6
 
 
+def test_feature_a_empty_spans_raises_value_error():
+    """Verify analyze_trace validates non-empty span input."""
+    engine = TraceAttributionEngine()
+    with pytest.raises(ValueError, match="empty span list"):
+        engine.analyze_trace([])
+
+
 def test_feature_b_diurnal_seasonal_harmonic_9am_traffic_ramp_vs_3am_spike():
     """Verify Feature B: 24-Hour Fourier Harmonic Diurnal Baseline recognizes expected 9:00 AM traffic surge
     (65% CPU) as normal while flagging the exact same 65% CPU at 3:00 AM as a critical anomaly.

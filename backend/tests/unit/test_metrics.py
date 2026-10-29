@@ -25,3 +25,14 @@ def test_metrics_endpoint_returns_prometheus_format(client):
     assert "aiops_anomalies_detected_total" in text
     assert 'service_id="payment-service"' in text
     assert "aiops_active_incidents 2.0" in text
+
+
+def test_health_endpoint_returns_process_time_and_metadata(client):
+    """Test that /health returns X-Process-Time-Ms header and system version metadata."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert "X-Process-Time-Ms" in response.headers
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["version"] == "1.2.0"
+    assert "timestamp" in data

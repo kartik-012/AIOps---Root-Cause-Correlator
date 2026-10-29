@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "AIOps Root Cause Correlator"
     VERSION: str = "1.2.0"
+    ENVIRONMENT: str = "production"
     CORS_ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",

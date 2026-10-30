@@ -313,6 +313,9 @@ python -m pytest tests/ -v
 
 ---
 
+## 🛡️ SRE Incident Governance & Safety Guarantees
+All automated remediations run under a 5% canary gate with sub-second gRPC health rollback circuits.
+
 ## 📜 License
 
 This project is open-source under the [MIT License](LICENSE).

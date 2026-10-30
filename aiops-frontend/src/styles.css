@@ -218,6 +218,7 @@ main {
 .chaos-btn.danger:hover {
   background: rgba(239, 68, 68, 0.25);
   transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
 }
 
 .chaos-btn.warning {

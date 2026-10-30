@@ -13,6 +13,7 @@ from app.models.db_models import Anomaly, MetricRaw, Service
 from app.models.schemas import MetricIngest, MetricIngestResponse, AnomalyOut
 from app.api.v1.ws import broadcast_event
 
+# Detection router handling streaming telemetry anomalies and baseline queries
 router = APIRouter()
 
 

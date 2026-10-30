@@ -249,6 +249,7 @@ class EbpfKernelProbeEngine:
         )
 
 
+# OtlpTraceReceiver ingests standard OpenTelemetry resourceSpans JSON payloads
 class OtlpTraceReceiver:
     """Standards-compliant OpenTelemetry OTLP/HTTP JSON `/v1/traces` receiver.
 

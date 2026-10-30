@@ -75,6 +75,7 @@ def encode_cyclical_time(
     return round(math.cos(angle), 6), round(math.sin(angle), 6)
 
 
+# build_signature normalizes metric anomalies into a 7-dimensional cosine vector
 def build_signature(
     hour_bucket: float,
     day_of_week: float,

@@ -9,6 +9,7 @@ from typing import Any
 import networkx as nx
 
 
+# DependencyGraph represents directed microservice service topology in NetworkX
 class DependencyGraph:
     """Represents the directed microservice dependency graph.
 

@@ -3526,3 +3526,12 @@ button.ghost:hover,
 .toast-enter-animated {
   animation: toastSlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes bottleneckPulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.45)); }
+  50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.85)); }
+}
+
+.otel-span-bar-fill.bottleneck {
+  animation: bottleneckPulseGlow 2.5s infinite ease-in-out;
+}

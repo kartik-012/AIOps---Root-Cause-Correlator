@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.2.0] - 2026-10-24
 
 ### Added
+- **Hardware-Accelerated UI & Motion Design System:**
+  - Ambient glassmorphic breathing pulse keyframes (`pulseSubtleGlow`).
+  - Tactile spring feedback on runbook action buttons and toast notification transitions.
+  - Bottleneck glow animation on critical OpenTelemetry span waterfall bars.
+  - Cyan laser sweep animation overlay across the remote governance QR code container.
+  - 20px frosted glass backdrop blur on 3D spatial topology HUD.
 - Verified 16-stage pipeline telemetry, documentation annotations, and latency tracking headers.
 - **Linux eBPF CO-RE Kernel Telemetry (`EbpfKernelProbeEngine`):** Zero-instrumentation kernel kprobe and tracepoint inspection (`syscalls:sys_enter_futex`, `tcp:tcp_retransmit_skb`, `sched:sched_switch`, `inet_csk_accept`) over `GET /api/v1/diagnostics/ebpf/{service_id}`.
 - **OpenTelemetry OTLP/HTTP `/v1/traces` Receiver (`OtlpTraceReceiver`):** Standards-compliant OpenTelemetry JSON trace receiver (`POST /api/v1/diagnostics/otlp/v1/traces`) with nanosecond-to-millisecond span normalization and interval-merged critical-path decomposition.

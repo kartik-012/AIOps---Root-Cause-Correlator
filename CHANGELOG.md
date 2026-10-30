@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.2.0] - 2026-10-24
 
 ### Added
+- Verified 16-stage pipeline telemetry, documentation annotations, and latency tracking headers.
 - **Linux eBPF CO-RE Kernel Telemetry (`EbpfKernelProbeEngine`):** Zero-instrumentation kernel kprobe and tracepoint inspection (`syscalls:sys_enter_futex`, `tcp:tcp_retransmit_skb`, `sched:sched_switch`, `inet_csk_accept`) over `GET /api/v1/diagnostics/ebpf/{service_id}`.
 - **OpenTelemetry OTLP/HTTP `/v1/traces` Receiver (`OtlpTraceReceiver`):** Standards-compliant OpenTelemetry JSON trace receiver (`POST /api/v1/diagnostics/otlp/v1/traces`) with nanosecond-to-millisecond span normalization and interval-merged critical-path decomposition.
 - **Progressive Trust & Remote Admin Investigation Mode:**

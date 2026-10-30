@@ -3507,3 +3507,10 @@ button.ghost:hover,
 .modal-backdrop-animated {
   animation: modalBackdropFadeIn 0.28s ease-out forwards;
 }
+
+.runbook-action-btn {
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease;
+}
+.runbook-action-btn:active {
+  transform: scale(0.96) translateY(1px);
+}

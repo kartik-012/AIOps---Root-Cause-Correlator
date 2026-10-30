@@ -26,6 +26,7 @@ class VerifiedIncident:
     diagnostic_details: Dict[str, Any]
 
 
+# Validates causal hypothesis via real-time gRPC health diagnostic inspection
 class VerificationEngine:
     def __init__(self, grpc_target: str = None):
         if not grpc_target:

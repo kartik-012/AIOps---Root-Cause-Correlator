@@ -3461,3 +3461,13 @@ button.ghost:hover,
 
 
 /* SRE Command Center: High-contrast telemetry tag typography adjustments */
+
+@keyframes brandMarkPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.4)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.85)); }
+}
+
+.brand-mark {
+  display: inline-block;
+  animation: brandMarkPulse 4s infinite ease-in-out;
+}

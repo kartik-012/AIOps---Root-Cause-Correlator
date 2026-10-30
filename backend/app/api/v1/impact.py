@@ -10,6 +10,7 @@ from app.engines.impact_engine import ImpactEngine
 from app.models.db_models import Incident, Service, ServiceDependency, Anomaly
 from app.models.schemas import ImpactResponse
 
+# Impact router computing revenue exposure and forward blast radius
 router = APIRouter()
 
 

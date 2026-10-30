@@ -1,3 +1,4 @@
+// SRE Incident Selector with interactive state micro-animations
 import React from 'react'
 import { sound } from '../utils/audio'
 

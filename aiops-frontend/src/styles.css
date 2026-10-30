@@ -3498,3 +3498,12 @@ button.ghost:hover,
   opacity: 0.6;
   pointer-events: none;
 }
+
+@keyframes modalBackdropFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to { opacity: 1; backdrop-filter: blur(12px); }
+}
+
+.modal-backdrop-animated {
+  animation: modalBackdropFadeIn 0.28s ease-out forwards;
+}

@@ -3471,3 +3471,14 @@ button.ghost:hover,
   display: inline-block;
   animation: brandMarkPulse 4s infinite ease-in-out;
 }
+
+@keyframes badgeShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.badge-critical-shimmer {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.4) 50%, rgba(239, 68, 68, 0.2) 100%);
+  background-size: 200% 100%;
+  animation: badgeShimmer 3s infinite linear;
+}

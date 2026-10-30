@@ -8,6 +8,7 @@ from app.dependencies import DBSession
 from app.models.db_models import Service, ServiceDependency
 from app.models.schemas import ServiceOut, ServiceCreate, DependencyCreate, GraphResponse, GraphNode, GraphEdge
 
+# Services router handling topology graph nodes and active dependencies
 router = APIRouter()
 
 

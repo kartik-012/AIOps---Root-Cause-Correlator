@@ -59,6 +59,7 @@ class GameDayReport:
         }
 
 
+# Orchestrates automated 4-stage GameDay crisis simulation drills
 class ChaosGameDayEngine:
     """Orchestrates end-to-end automated SRE Chaos GameDay exercises."""
 

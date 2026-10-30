@@ -186,6 +186,7 @@ class EWMAState:
 
 
 
+# DetectionEngine processes incoming metrics against diurnal + EWMA thresholds
 class DetectionEngine:
     """Streaming anomaly detection engine for microservice telemetry with optional Redis state store."""
 

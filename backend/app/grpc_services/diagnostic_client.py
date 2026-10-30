@@ -40,6 +40,7 @@ class MetricUpdate:
     value: float
     timestamp: str
 
+# High-performance async gRPC client probing microservice container health
 class DiagnosticClient:
     def __init__(self, target: str = "localhost:50051"):
         self.target = target

@@ -18,6 +18,7 @@ function getAudioContext() {
   return audioCtx
 }
 
+// SRE Command Center auditory feedback synthesizer
 export const sound = {
   muted: false,
 

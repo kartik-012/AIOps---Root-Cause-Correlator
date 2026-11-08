@@ -91,6 +91,7 @@ class TraceAttributionEngine:
     """Computes interval-aware critical-path latency attribution across OpenTelemetry spans."""
 
     @staticmethod
+    # Helper: compute non-overlapping union of child span intervals
     def _merged_children_duration(parent: TraceSpan, children: list[TraceSpan]) -> float:
         """Compute total time spent waiting on child spans, merging overlapping parallel intervals."""
         if not children:

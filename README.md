@@ -152,6 +152,7 @@ All evaluation metrics are generated from automated execution across 30 syntheti
 
 ---
 
+<!-- Quick Navigation: OTel Tracing, eBPF Kernel Probes, MicroRCA++ Personalization -->
 ## 🧠 Principal SRE Architectural Capabilities
 
 1. **MicroRCA++ Dynamic Edge-Weighted Personalized PageRank (`CorrelationEngine`)**: Replaces static uniform transition probabilities with log-scaled request-rate (`log1p(RPS)`) and empirical metric covariance edge weights, preventing hub-bias false positives on API Gateways.

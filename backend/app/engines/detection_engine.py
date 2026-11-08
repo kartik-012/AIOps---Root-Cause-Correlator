@@ -374,6 +374,7 @@ class DetectionEngine:
             winsorized=False,
         )
 
+    # Reset in-memory and Redis EWMA statistical trackers
     def reset_state(self, service_id: str | None = None, metric_type: str | None = None) -> None:
         """Reset state for a specific metric or all metrics."""
         if service_id is None and metric_type is None:

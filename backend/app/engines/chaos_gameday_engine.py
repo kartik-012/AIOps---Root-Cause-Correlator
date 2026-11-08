@@ -93,6 +93,7 @@ class ChaosGameDayEngine:
         graph.set_edge_weight("order-service", "inventory-service", rps=140.0, covariance=0.18)
         return graph
 
+    # Run multi-stage chaos drill with automatic verification
     async def run_gameday_drill(
         self,
         scenario_name: str = "db_pool_exhaustion",

@@ -2161,6 +2161,8 @@ button.ghost:hover,
 }
 
 .hud-action-hint {
+  transition: color 0.2s ease;
+  user-select: none;
   font: 10px 'IBM Plex Mono', monospace;
   color: #38bdf8;
   margin-top: 4px;

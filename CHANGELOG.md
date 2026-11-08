@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.2.0] - 2026-10-24
 
 ### Added
+- Non-overlapping child span interval calculation documentation.
+- Interactive incident card selection polish with cursor pointers.
 - **Hardware-Accelerated UI & Motion Design System:**
   - Ambient glassmorphic breathing pulse keyframes (`pulseSubtleGlow`).
   - Tactile spring feedback on runbook action buttons and toast notification transitions.

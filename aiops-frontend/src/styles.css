@@ -309,6 +309,8 @@ main {
 }
 
 .incident-card {
+  cursor: pointer;
+  user-select: none;
   padding: 14px;
   border-radius: 12px;
   background: rgba(242, 184, 75, 0.08);

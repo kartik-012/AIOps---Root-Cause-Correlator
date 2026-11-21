@@ -62,6 +62,8 @@ main {
 }
 
 .brand {
+  transition: opacity 0.2s ease;
+  user-select: none;
   display: flex;
   align-items: center;
   gap: 12px;

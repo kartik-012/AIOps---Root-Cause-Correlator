@@ -66,3 +66,7 @@ docs/INTERNSHIP_STUDY_GUIDE_TASKS_2_TO_15.md
 AIOps_Internship_Study_Guide_Tasks_2_to_15.*
 INTERNSHIP_QUESTIONS_AND_ANSWERS_SIMPLE.md
 AIOps_Questions_and_Answers_Simple.*
+
+# Agent Workspaces & Skill Locks
+.agents/
+skills-lock.json

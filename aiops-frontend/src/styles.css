@@ -3571,3 +3571,9 @@ button.ghost:hover,
   animation: qrLaserSweep 3s infinite ease-in-out;
   pointer-events: none;
 }
+
+/* SRE User Profile & Modal Input Focus States */
+.modal input:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}

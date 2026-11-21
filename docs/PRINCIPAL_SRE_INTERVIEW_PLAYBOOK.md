@@ -69,3 +69,5 @@ Hiring managers and Staff Engineers spend ~60–90 seconds reviewing a live demo
 | **P3 - Warning** | < $500 / min | Telemetry Suppression (Cosine Memory) | SRE Auto-Resolution with Audit Log |
 
 <!-- Revision 2026.10: Staff SRE System Design & Real-Time Incident Correlator -->
+
+<!-- Note: gRPC container health telemetry verification adjusts causal confidence by +/-10% -->

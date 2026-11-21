@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.2.0] - 2026-10-24
 
 ### Added
+- Extended Prometheus `/metrics` scraping route documentation.
+- Registered microservice topology contribution guidelines.
 - Automated chaos drill execution flow documentation.
 - Detection engine state reset documentation.
 - Non-overlapping child span interval calculation documentation.

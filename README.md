@@ -311,6 +311,7 @@ python -m pytest tests/ -v
 | `POST` | `/api/v1/integrations/slack/webhook` | Formats and delivers incident cards to Slack / Discord via Block Kit |
 | `POST` | `/api/v1/integrations/llm/post-mortem` | Generates comprehensive AI root-cause analysis post-mortem document |
 | `WS` | `/api/v1/ws/incidents` | Real-time WebSocket stream pushing anomaly and correlation events |
+| `GET` | `/metrics` | Prometheus metrics scraping endpoint for SRE monitoring & alerting |
 
 ---
 

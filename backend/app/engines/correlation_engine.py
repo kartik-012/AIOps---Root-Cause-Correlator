@@ -413,6 +413,7 @@ class CorrelationEngine:
         confidence = 0.5 * severity_score + 0.3 * precedence_score + 0.2 * centrality
         return round(min(max(confidence, 0.1), 0.99), 2)
 
+    # Main correlation entrypoint clustering anomalies into CorrelatedIncident objects
     def correlate(
         self,
         anomalies: list[AnomalyEvent],

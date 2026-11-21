@@ -78,6 +78,7 @@ def _spearman_corr(x: np.ndarray, y: np.ndarray) -> float:
     return _pearson_corr(_rank_array(x), _rank_array(y))
 
 
+# Cross-correlation analysis evaluating Pearson r and Spearman rho across time-lags
 def compute_lagged_cross_correlation(
     series_cause: list[float],
     series_effect: list[float],

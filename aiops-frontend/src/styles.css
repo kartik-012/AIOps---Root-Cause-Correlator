@@ -300,6 +300,7 @@ main {
 
 .cap,
 .eyebrow {
+  text-transform: uppercase;
   display: block;
   color: #8b93a1;
   font: 10px 'IBM Plex Mono';

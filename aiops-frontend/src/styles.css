@@ -3577,3 +3577,8 @@ button.ghost:hover,
   outline: 2px solid #38bdf8;
   outline-offset: 1px;
 }
+
+/* Modal Close Button Tactile Interaction */
+.modal-close-btn:active {
+  transform: scale(0.92);
+}

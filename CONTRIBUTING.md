@@ -63,3 +63,6 @@ Before submitting a Pull Request, please ensure:
 | `API_V1_PREFIX` | `/api/v1` | Base route prefix for REST endpoints |
 | `ENVIRONMENT` | `production` | Active deployment environment label |
 | `GRPC_DIAGNOSTIC_TARGET` | `localhost:50051` | Embedded gRPC diagnostic mesh loopback target |
+
+### Adding New Microservices
+When adding a new microservice, declare it in `backend/app/main.py` lifespan and add corresponding mock states in `backend/app/grpc_services/service_states.py`.

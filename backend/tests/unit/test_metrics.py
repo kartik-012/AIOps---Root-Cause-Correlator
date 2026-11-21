@@ -12,6 +12,7 @@ def client():
 
 
 def test_metrics_endpoint_returns_prometheus_format(client):
+    """Verify /metrics endpoint provides standards-compliant Prometheus text format."""
     """Test that /metrics returns valid text format with expected metrics."""
     # Increment counter
     ANOMALIES_DETECTED_TOTAL.labels(service_id="payment-service", metric_type="connection_pool", severity="critical").inc()

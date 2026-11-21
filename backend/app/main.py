@@ -167,6 +167,7 @@ app.include_router(integrations.router, prefix=prefix, tags=["Integrations"])
 app.include_router(kafka_ingest.router, prefix=prefix, tags=["Kafka Ingest"])
 app.include_router(diagnostics.router, prefix=prefix, tags=["Diagnostics"])
 app.include_router(ws.router, prefix=prefix, tags=["WebSocket"])
+# WebSocket direct connection for real-time SRE telemetry streaming
 app.include_router(ws.router, tags=["WebSocket Direct"])
 
 # Mount GraphQL endpoint with subscriptions support

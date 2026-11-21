@@ -694,6 +694,7 @@ class RemediationEngine:
 _remediation_engine = RemediationEngine()
 
 
+# Singleton factory accessor for the global RemediationEngine instance
 def get_remediation_engine() -> RemediationEngine:
     return _remediation_engine
 
